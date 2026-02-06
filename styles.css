@@ -1,4 +1,3 @@
-/* Base */
 :root {
   --ras-bg: #f5f6f8;
   --ras-card: #ffffff;
@@ -16,7 +15,6 @@ body {
   background: var(--ras-bg);
 }
 
-/* Shell */
 .ras-shell {
   display: flex;
   min-height: 100vh;
@@ -93,7 +91,7 @@ body {
   padding-top: 10px;
 }
 
-/* Collapse behavior (hide text, keep layout clean) */
+/* Collapse behavior */
 .ras-sidebar.is-collapsed .ras-brand__sub,
 .ras-sidebar.is-collapsed .ras-nav__item {
   font-size: 0;
@@ -219,7 +217,6 @@ body {
   padding: 14px;
 }
 
-/* Utilities */
 .d-none {
   display: none !important;
 }

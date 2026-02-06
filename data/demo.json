@@ -1,0 +1,67 @@
+{
+  "schema": "RAS_EXPORT_V1",
+  "exportedAt": "2026-02-06T00:00:00.000Z",
+  "updatedAt": "2026-02-06T00:00:00.000Z",
+  "movements": [
+    {
+      "id": "demo-001",
+      "date": "2026-01-07",
+      "type": "saida",
+      "category": "Dinheiro colocado",
+      "assetClass": "Caixa",
+      "description": "Reforço inicial (demo)",
+      "amount": 500,
+      "createdAt": "2026-01-07T10:00:00.000Z"
+    },
+    {
+      "id": "demo-002",
+      "date": "2026-01-10",
+      "type": "saida",
+      "category": "Compra/Reforço",
+      "assetClass": "Ações",
+      "description": "Compra Microsoft (demo)",
+      "amount": 200,
+      "createdAt": "2026-01-10T10:00:00.000Z"
+    },
+    {
+      "id": "demo-003",
+      "date": "2026-01-12",
+      "type": "saida",
+      "category": "Compra/Reforço",
+      "assetClass": "Cripto",
+      "description": "Compra BTC (demo)",
+      "amount": 150,
+      "createdAt": "2026-01-12T10:00:00.000Z"
+    },
+    {
+      "id": "demo-004",
+      "date": "2026-01-20",
+      "type": "entrada",
+      "category": "Dividendos",
+      "assetClass": "Ações",
+      "description": "Dividendos (demo)",
+      "amount": 7.5,
+      "createdAt": "2026-01-20T10:00:00.000Z"
+    },
+    {
+      "id": "demo-005",
+      "date": "2026-01-25",
+      "type": "entrada",
+      "category": "Juros",
+      "assetClass": "P2P",
+      "description": "Juros P2P (demo)",
+      "amount": 4.2,
+      "createdAt": "2026-01-25T10:00:00.000Z"
+    },
+    {
+      "id": "demo-006",
+      "date": "2026-02-01",
+      "type": "saida",
+      "category": "Comissões",
+      "assetClass": "Ações",
+      "description": "Comissão corretora (demo)",
+      "amount": 1,
+      "createdAt": "2026-02-01T10:00:00.000Z"
+    }
+  ]
+}

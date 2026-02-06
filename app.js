@@ -1,5 +1,8 @@
 /* app.js — V1 local (robusto em file:/// no Firefox)
-   Resolve o “pisca e volta ao login” criando sessão via query param.
+   + Export/Import JSON (dados privados)
+   + Limpar dados
+   + Demo via ficheiro ./data/demo.json (GitHub Pages) com fallback interno (file:///)
+   + REGRA B: Investido Total = apenas saídas de "Dinheiro colocado" + "Compra/Reforço"
 */
 
 (function () {
@@ -12,7 +15,13 @@
     localUser: "ras_local_user_v1",
     movements: "ras_movements_v1",
     sidebar: "ras_sidebar_state_v1",
+    updatedAt: "ras_updated_at_v1",
   };
+
+  const INVEST_CATEGORIES = new Set(["Dinheiro colocado", "Compra/Reforço"]);
+
+  // Caminho do ficheiro demo no repo/Pages
+  const DEMO_URL = "./data/demo.json";
 
   function nowISO() {
     return new Date().toISOString();
@@ -75,7 +84,158 @@
   }
 
   // -----------------------
-  // INDEX (login)
+  // BACKUP JSON (dados privados)
+  // -----------------------
+  function buildExportPayload() {
+    return {
+      schema: "RAS_EXPORT_V1",
+      exportedAt: nowISO(),
+      movements: getMovements(),
+      updatedAt: localStorage.getItem(STORAGE_KEYS.updatedAt) || null,
+    };
+  }
+
+  function downloadJSON(filename, obj) {
+    const json = JSON.stringify(obj, null, 2);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function exportJSON() {
+    const d = new Date();
+    const stamp = [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      String(d.getDate()).padStart(2, "0"),
+      "_",
+      String(d.getHours()).padStart(2, "0"),
+      String(d.getMinutes()).padStart(2, "0"),
+    ].join("");
+
+    downloadJSON(`rumo-ao-sucesso_backup_${stamp}.json`, buildExportPayload());
+  }
+
+  function validateImportPayload(obj) {
+    return !!(
+      obj &&
+      typeof obj === "object" &&
+      obj.schema === "RAS_EXPORT_V1" &&
+      Array.isArray(obj.movements)
+    );
+  }
+
+  function applyImportPayload(obj) {
+    setMovements(obj.movements);
+    localStorage.setItem(STORAGE_KEYS.updatedAt, obj.updatedAt || nowISO());
+  }
+
+  // -----------------------
+  // DEMO (fallback interno)
+  // -----------------------
+  function demoFallbackPayload() {
+    // payload no mesmo formato do export/import
+    const today = new Date();
+    const fmt = (daysAgo) => {
+      const x = new Date(today);
+      x.setDate(x.getDate() - daysAgo);
+      const yyyy = x.getFullYear();
+      const mm = String(x.getMonth() + 1).padStart(2, "0");
+      const dd = String(x.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const uuid = (n) => `demo-fallback-${String(n).padStart(3, "0")}`;
+
+    return {
+      schema: "RAS_EXPORT_V1",
+      exportedAt: nowISO(),
+      updatedAt: nowISO(),
+      movements: [
+        {
+          id: uuid(1),
+          date: fmt(30),
+          type: "saida",
+          category: "Dinheiro colocado",
+          assetClass: "Caixa",
+          description: "Reforço inicial (fallback)",
+          amount: 500,
+          createdAt: nowISO(),
+        },
+        {
+          id: uuid(2),
+          date: fmt(25),
+          type: "saida",
+          category: "Compra/Reforço",
+          assetClass: "Ações",
+          description: "Compra Microsoft (fallback)",
+          amount: 200,
+          createdAt: nowISO(),
+        },
+        {
+          id: uuid(3),
+          date: fmt(22),
+          type: "saida",
+          category: "Compra/Reforço",
+          assetClass: "Cripto",
+          description: "Compra BTC (fallback)",
+          amount: 150,
+          createdAt: nowISO(),
+        },
+        {
+          id: uuid(4),
+          date: fmt(15),
+          type: "entrada",
+          category: "Dividendos",
+          assetClass: "Ações",
+          description: "Dividendos (fallback)",
+          amount: 7.5,
+          createdAt: nowISO(),
+        },
+        {
+          id: uuid(5),
+          date: fmt(10),
+          type: "entrada",
+          category: "Juros",
+          assetClass: "P2P",
+          description: "Juros P2P (fallback)",
+          amount: 4.2,
+          createdAt: nowISO(),
+        },
+        {
+          id: uuid(6),
+          date: fmt(5),
+          type: "saida",
+          category: "Comissões",
+          assetClass: "Ações",
+          description: "Comissão corretora (fallback)",
+          amount: 1.0,
+          createdAt: nowISO(),
+        },
+      ],
+    };
+  }
+
+  async function fetchDemoPayload() {
+    // tenta buscar o demo.json (funciona em GitHub Pages)
+    // em file:/// pode falhar -> lançamos erro e fazemos fallback
+    const res = await fetch(DEMO_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("DEMO_FETCH_NOT_OK");
+    const obj = await res.json();
+    if (!validateImportPayload(obj)) throw new Error("DEMO_SCHEMA_INVALID");
+    return obj;
+  }
+
+  // -----------------------
+  // INDEX
   // -----------------------
   function initIndex() {
     const btnDemo = $("btnDemo");
@@ -102,9 +262,7 @@
         lines.push(`<strong>Estado:</strong> Autenticado`);
         lines.push(`<strong>Modo:</strong> ${s.mode}`);
         lines.push(`<strong>Conta:</strong> ${s.email}`);
-        lines.push(
-          `<strong>Início:</strong> ${new Date(s.startedAt).toLocaleString("pt-PT")}`
-        );
+        lines.push(`<strong>Início:</strong> ${new Date(s.startedAt).toLocaleString("pt-PT")}`);
       } else {
         lines.push(`<strong>Estado:</strong> Não autenticado`);
       }
@@ -128,65 +286,49 @@
 
     renderSessionInfo();
 
-    if (btnClearSession) {
-      btnClearSession.addEventListener("click", () => {
-        clearSession();
-        location.reload();
-      });
-    }
+    btnClearSession?.addEventListener("click", () => {
+      clearSession();
+      location.reload();
+    });
 
-    // ✅ DEMO: não depende do localStorage para “passar” de página
-    if (btnDemo) {
-      btnDemo.addEventListener("click", () => {
-        // vai com parâmetro demo=1 (o dashboard cria sessão lá dentro)
-        window.location.assign("./dashboard.html?demo=1");
-      });
-    }
+    // Demo robusto: entra no dashboard por query param
+    btnDemo?.addEventListener("click", () => {
+      window.location.assign("./dashboard.html?demo=1");
+    });
 
-    if (btnSignup) {
-      btnSignup.addEventListener("click", () => {
-        const email = (emailEl?.value || "").trim();
-        const pass = passEl?.value || "";
+    btnSignup?.addEventListener("click", () => {
+      const email = (emailEl?.value || "").trim();
+      const pass = passEl?.value || "";
 
-        if (!email.includes("@")) return alert("Coloca um email válido.");
-        if (pass.length < 8) return alert("Password tem de ter pelo menos 8 caracteres.");
+      if (!email.includes("@")) return alert("Coloca um email válido.");
+      if (pass.length < 8) return alert("Password tem de ter pelo menos 8 caracteres.");
 
-        upsertLocalUser(email, pass);
-        alert("Utilizador local criado ✅ (V1)");
-        renderSessionInfo();
-      });
-    }
+      upsertLocalUser(email, pass);
+      alert("Utilizador local criado ✅ (V1)");
+      renderSessionInfo();
+    });
 
-    if (btnLogin) {
-      btnLogin.addEventListener("click", () => {
-        const email = (emailEl?.value || "").trim();
-        const pass = passEl?.value || "";
-        const u = getLocalUser();
+    btnLogin?.addEventListener("click", () => {
+      const email = (emailEl?.value || "").trim();
+      const pass = passEl?.value || "";
+      const u = getLocalUser();
 
-        if (!u) return alert("Ainda não existe utilizador local. Faz Inscrição ou usa Demo.");
-        if (u.email !== email || u.password !== pass) return alert("Credenciais inválidas.");
+      if (!u) return alert("Ainda não existe utilizador local. Faz Inscrição ou usa Demo.");
+      if (u.email !== email || u.password !== pass) return alert("Credenciais inválidas.");
 
-        // vai com local=1 (o dashboard cria sessão lá dentro)
-        const qs = new URLSearchParams({ local: "1", email });
-        window.location.assign(`./dashboard.html?${qs.toString()}`);
-      });
-    }
+      const qs = new URLSearchParams({ local: "1", email });
+      window.location.assign(`./dashboard.html?${qs.toString()}`);
+    });
   }
 
   // -----------------------
   // DASHBOARD
   // -----------------------
   function initDashboard() {
-    // ✅ 1) Se vier por query param, cria sessão ANTES de validar
     const params = new URLSearchParams(window.location.search);
 
     if (params.get("demo") === "1") {
-      setSession({
-        mode: "demo",
-        email: "demo@rumoaosucesso.local",
-        startedAt: nowISO(),
-      });
-      // limpar query para não ficar “sujo”
+      setSession({ mode: "demo", email: "demo@rumoaosucesso.local", startedAt: nowISO() });
       try {
         const url = new URL(window.location.href);
         url.search = "";
@@ -196,11 +338,7 @@
 
     if (params.get("local") === "1") {
       const email = (params.get("email") || "").trim() || "local@rumoaosucesso.local";
-      setSession({
-        mode: "local",
-        email,
-        startedAt: nowISO(),
-      });
+      setSession({ mode: "local", email, startedAt: nowISO() });
       try {
         const url = new URL(window.location.href);
         url.search = "";
@@ -208,14 +346,12 @@
       } catch {}
     }
 
-    // ✅ 2) Agora valida sessão
     const session = getSession();
     if (!session) {
       window.location.assign("./index.html");
       return;
     }
 
-    // UI refs (se existirem no teu dashboard)
     const badgeMode = $("badgeMode");
     const badgeUser = $("badgeUser");
     const btnLogout = $("btnLogout");
@@ -246,17 +382,20 @@
     const kUpdated = $("kUpdated");
     const tbody = $("movementsTbody");
 
+    const btnExportJSON = $("btnExportJSON");
+    const btnImportJSON = $("btnImportJSON");
+    const btnClearData = $("btnClearData");
+    const btnLoadDemo = $("btnLoadDemo");
+    const fileImport = $("fileImport");
+
     if (badgeMode) badgeMode.textContent = `Modo: ${session.mode}`;
     if (badgeUser) badgeUser.textContent = session.email;
 
-    if (btnLogout) {
-      btnLogout.addEventListener("click", () => {
-        clearSession();
-        window.location.assign("./index.html");
-      });
-    }
+    btnLogout?.addEventListener("click", () => {
+      clearSession();
+      window.location.assign("./index.html");
+    });
 
-    // Sidebar collapse (opcional)
     const savedSidebar = localStorage.getItem(STORAGE_KEYS.sidebar);
     if (savedSidebar === "collapsed") sidebar?.classList.add("is-collapsed");
 
@@ -272,7 +411,14 @@
     btnSidebarToggle?.addEventListener("click", toggleSidebar);
     btnMobileMenu?.addEventListener("click", toggleSidebar);
 
-    // Modal helpers
+    // (secções ligamos a seguir; por agora mantém simples)
+    document.querySelectorAll(".ras-nav__item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".ras-nav__item").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+      });
+    });
+
     function openModal() {
       if (!modal || !backdrop) return;
       backdrop.classList.remove("d-none");
@@ -302,22 +448,28 @@
     btnCancelMove?.addEventListener("click", closeModal);
     backdrop?.addEventListener("click", closeModal);
 
-    // Regra 2: totais
+    // ✅ REGRA B: investidoTotal só com categorias de investimento
     function computeTotals(moves) {
       let entradas = 0;
       let saidas = 0;
+      let investidoTotal = 0;
 
       for (const m of moves) {
         const amt = Number(m.amount) || 0;
+
         if (m.type === "entrada") entradas += amt;
-        if (m.type === "saida") saidas += amt;
+
+        if (m.type === "saida") {
+          saidas += amt;
+          if (INVEST_CATEGORIES.has(m.category)) investidoTotal += amt;
+        }
       }
 
       return {
         entradas,
         saidas,
         saldo: entradas - saidas,
-        investidoTotal: saidas,
+        investidoTotal,
       };
     }
 
@@ -355,8 +507,10 @@
         btn.addEventListener("click", () => {
           const id = btn.getAttribute("data-del");
           if (!confirm("Apagar este movimento?")) return;
+
           const list = getMovements().filter((x) => x.id !== id);
           setMovements(list);
+          localStorage.setItem(STORAGE_KEYS.updatedAt, nowISO());
           renderAll();
         });
       });
@@ -376,11 +530,10 @@
       if (kSaidas) kSaidas.textContent = formatEUR(totals.saidas);
       if (kCount) kCount.textContent = String(moves.length);
 
-      const updatedAt = localStorage.getItem("ras_updated_at_v1");
-      if (kUpdated)
-        kUpdated.textContent = updatedAt
-          ? new Date(updatedAt).toLocaleString("pt-PT")
-          : "—";
+      const updatedAt = localStorage.getItem(STORAGE_KEYS.updatedAt);
+      if (kUpdated) {
+        kUpdated.textContent = updatedAt ? new Date(updatedAt).toLocaleString("pt-PT") : "—";
+      }
 
       renderTable(moves);
     }
@@ -407,9 +560,77 @@
       const list = getMovements();
       list.push(movement);
       setMovements(list);
-      localStorage.setItem("ras_updated_at_v1", nowISO());
+      localStorage.setItem(STORAGE_KEYS.updatedAt, nowISO());
 
       closeModal();
+      renderAll();
+    });
+
+    // Export JSON (backup privado)
+    btnExportJSON?.addEventListener("click", () => {
+      if (!confirm("Exportar backup JSON dos teus movimentos?")) return;
+      exportJSON();
+    });
+
+    // Import JSON (restore/migração)
+    btnImportJSON?.addEventListener("click", () => fileImport?.click());
+
+    fileImport?.addEventListener("change", async () => {
+      const file = fileImport.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const obj = JSON.parse(text);
+
+        if (!validateImportPayload(obj)) {
+          alert("Ficheiro inválido. (schema não reconhecido)");
+          fileImport.value = "";
+          return;
+        }
+
+        const ok = confirm("Importar vai substituir os movimentos atuais. Continuar?");
+        if (!ok) {
+          fileImport.value = "";
+          return;
+        }
+
+        applyImportPayload(obj);
+        alert("Importação concluída ✅");
+        fileImport.value = "";
+        renderAll();
+      } catch {
+        alert("Erro a importar. Confirma se é um JSON válido.");
+        fileImport.value = "";
+      }
+    });
+
+    // Limpar dados
+    btnClearData?.addEventListener("click", () => {
+      const ok = confirm("Isto vai apagar TODOS os movimentos (dados). Tens backup? Continuar?");
+      if (!ok) return;
+
+      localStorage.removeItem(STORAGE_KEYS.movements);
+      localStorage.removeItem(STORAGE_KEYS.updatedAt);
+      alert("Dados apagados. (código mantém-se)");
+      renderAll();
+    });
+
+    // Carregar Demo: tenta demo.json (Pages), se falhar usa fallback
+    btnLoadDemo?.addEventListener("click", async () => {
+      const ok = confirm("Carregar demo vai substituir os teus movimentos atuais. Continuar?");
+      if (!ok) return;
+
+      try {
+        const payload = await fetchDemoPayload();
+        applyImportPayload(payload);
+        alert("Demo carregada via demo.json ✅");
+      } catch {
+        // fallback para file:///
+        applyImportPayload(demoFallbackPayload());
+        alert("Demo carregada (fallback local) ✅");
+      }
+
       renderAll();
     });
 
@@ -421,7 +642,6 @@
   // -----------------------
   document.addEventListener("DOMContentLoaded", () => {
     const path = (location.pathname || "").toLowerCase();
-
     if (path.endsWith("dashboard.html")) initDashboard();
     else initIndex();
   });
