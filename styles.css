@@ -1,222 +1,46 @@
-:root {
-  --ras-bg: #f5f6f8;
-  --ras-card: #ffffff;
-  --ras-border: rgba(0, 0, 0, 0.08);
-  --ras-sidebar-w: 280px;
-  --ras-sidebar-collapsed: 78px;
-}
+/* styles.css — V1 */
 
-html,
-body {
-  height: 100%;
-}
-
-.ras-app {
-  background: var(--ras-bg);
-}
-
-.ras-shell {
-  display: flex;
+#appShell {
   min-height: 100vh;
 }
 
-/* Sidebar */
-.ras-sidebar {
-  width: var(--ras-sidebar-w);
-  min-height: 100vh;
-  position: sticky;
-  top: 0;
-  border-right: 1px solid var(--ras-border);
-  background: #fff;
+#sidebar {
+  width: 260px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  transition: width 180ms ease;
 }
 
-.ras-sidebar.is-collapsed {
-  width: var(--ras-sidebar-collapsed);
+.nav-link.ras-nav {
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  color: #111;
 }
 
-.ras-sidebar__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.ras-brand__title {
-  font-weight: 800;
-  font-size: 16px;
-}
-.ras-brand__sub {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.55);
-}
-
-.ras-sidebar__toggle {
-  flex: 0 0 auto;
-}
-
-.ras-nav {
-  display: grid;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.ras-nav__item {
-  border: 1px solid var(--ras-border);
-  background: #fff;
-  text-align: left;
-  padding: 10px 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.ras-nav__item:hover {
-  background: rgba(0, 0, 0, 0.03);
-}
-
-.ras-nav__item.is-active {
+.nav-link.ras-nav.active {
   background: #0d6efd;
   color: #fff;
-  border-color: rgba(13, 110, 253, 0.35);
 }
 
-.ras-sidebar__bottom {
-  margin-top: auto;
-  border-top: 1px solid var(--ras-border);
-  padding-top: 10px;
+.nav-link.ras-nav.disabled {
+  opacity: 0.45;
 }
 
-/* Collapse behavior */
-.ras-sidebar.is-collapsed .ras-brand__sub,
-.ras-sidebar.is-collapsed .ras-nav__item {
-  font-size: 0;
-  padding: 12px 0;
-  text-align: center;
-}
-.ras-sidebar.is-collapsed .ras-nav__item::after {
-  content: "•";
-  font-size: 18px;
-}
-.ras-sidebar.is-collapsed .ras-brand__title {
-  font-size: 0;
-}
-.ras-sidebar.is-collapsed .ras-brand__title::after {
-  content: "☰";
-  font-size: 18px;
-  font-weight: 700;
+.ras-section {
+  animation: rasFade 140ms ease-in;
 }
 
-/* Main */
-.ras-main {
-  flex: 1 1 auto;
-  min-width: 0;
+@keyframes rasFade {
+  from { opacity: 0.4; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Topbar */
-.ras-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--ras-border);
-  background: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 5;
+/* “gaveta/scroll” dentro das caixas */
+.ras-drawer {
+  border-radius: 12px;
 }
 
-.ras-topbar__left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ras-page-title {
-  font-weight: 800;
-  font-size: 18px;
-  line-height: 1.1;
-}
-.ras-page-subtitle {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.55);
-}
-
-/* Metrics */
-.ras-metric {
-  font-size: 34px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
-  margin-bottom: 4px;
-}
-
-.ras-kpi {
-  border: 1px solid var(--ras-border);
-  background: var(--ras-card);
-  border-radius: 16px;
-  padding: 12px;
-}
-.ras-kpi__label {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-}
-.ras-kpi__value {
-  font-size: 18px;
-  font-weight: 800;
-}
-
-/* Modal */
-.ras-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 20;
-}
-
-.ras-modal {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  z-index: 25;
-  padding: 16px;
-}
-
-.ras-modal__card {
-  width: min(720px, 100%);
-  background: #fff;
-  border: 1px solid var(--ras-border);
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.18);
-}
-
-.ras-modal__header,
-.ras-modal__footer {
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.02);
-  border-bottom: 1px solid var(--ras-border);
-}
-
-.ras-modal__footer {
-  border-bottom: none;
-  border-top: 1px solid var(--ras-border);
-  justify-content: flex-end;
-}
-
-.ras-modal__body {
-  padding: 14px;
-}
-
-.d-none {
-  display: none !important;
+.ras-table-scroll {
+  max-height: 320px;
+  overflow: auto;
 }

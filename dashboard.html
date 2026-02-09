@@ -1,316 +1,761 @@
 <!doctype html>
 <html lang="pt-PT">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
-    <title>Rumo ao Sucesso — Dashboard</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rumo ao Sucesso — Dashboard</title>
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
+  <!-- Bootstrap 5 (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
 
-  <body class="ras-app">
-    <div class="ras-shell">
+<body class="bg-body-tertiary">
+  <div class="container-fluid py-3">
+    <div class="row g-3">
+
       <!-- SIDEBAR -->
-      <aside id="sidebar" class="ras-sidebar">
-        <div class="ras-sidebar__top">
-          <div class="ras-brand">
-            <div class="ras-brand__title">Menu</div>
-            <div class="ras-brand__sub">Rumo ao Sucesso</div>
-          </div>
+      <aside class="col-12 col-lg-3 col-xl-2">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-bold">Menu</div>
+                <div class="text-secondary small">Rumo ao Sucesso</div>
+              </div>
+              <button id="btnToggleMenu" class="btn btn-outline-secondary btn-sm">☰</button>
+            </div>
 
-          <button
-            id="btnSidebarToggle"
-            type="button"
-            class="btn btn-sm btn-outline-secondary ras-sidebar__toggle"
-            title="Encolher/expandir"
-          >
-            ☰
-          </button>
-        </div>
+            <hr class="my-3"/>
 
-        <nav class="ras-nav">
-          <button class="ras-nav__item is-active" data-route="patrimonio">
-            Património Líquido
-          </button>
-          <button class="ras-nav__item" data-route="acoes">
-            Ações + Dividendos
-          </button>
-          <button class="ras-nav__item" data-route="cripto">Cripto</button>
-          <button class="ras-nav__item" data-route="p2p">P2P</button>
-          <button class="ras-nav__item" data-route="fundos">Fundos Parados</button>
-          <button class="ras-nav__item" data-route="vendas">
-            Vendas / Realizações
-          </button>
-          <button class="ras-nav__item" data-route="graficos">Gráficos</button>
-          <button class="ras-nav__item" data-route="ia">Resumo por IA</button>
-        </nav>
+            <nav id="menuList" class="list-group">
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#patrimonio" data-section="patrimonio">Património Líquido</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#acoes" data-section="acoes">Ações + Dividendos</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#cripto" data-section="cripto">Cripto</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#p2p" data-section="p2p">P2P</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#fundos" data-section="fundos">Fundos Parados</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#vendas" data-section="vendas">Vendas / Realizações</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#graficos" data-section="graficos">Gráficos</a>
+              <a class="list-group-item list-group-item-action" href="./dashboard.html#ia" data-section="ia">Resumo por IA</a>
+            </nav>
 
-        <div class="ras-sidebar__bottom">
-          <div class="small text-secondary">
-            <span class="badge text-bg-dark me-2" id="badgeMode">modo</span>
-            <span id="badgeUser">—</span>
-          </div>
+            <hr class="my-3"/>
 
-          <div class="d-grid gap-2 mt-2">
-            <button id="btnLogout" type="button" class="btn btn-outline-danger btn-sm">
-              Sair
-            </button>
+            <div class="small text-secondary">Sessão</div>
+            <div id="sessionBox" class="border rounded p-2 small bg-white">
+              <div><span class="badge text-bg-secondary" id="badgeMode">—</span></div>
+              <div class="text-truncate" id="sessionEmail">—</div>
+              <div class="text-secondary" id="sessionWhen">—</div>
+              <div class="mt-2 d-grid">
+                <button id="btnLogout" class="btn btn-outline-danger btn-sm">Sair</button>
+              </div>
+            </div>
+
+            <div class="mt-3 small text-secondary">
+              Exportar JSON = backup. Importar JSON = recuperar/migrar.
+              <span class="text-primary">Dados reais ficam no teu dispositivo.</span>
+            </div>
           </div>
         </div>
       </aside>
 
       <!-- MAIN -->
-      <main class="ras-main">
-        <header class="ras-topbar">
-          <div class="ras-topbar__left">
-            <button
-              id="btnMobileMenu"
-              class="btn btn-outline-secondary btn-sm d-md-none"
-              type="button"
-            >
-              ☰
-            </button>
-            <div>
-              <div class="ras-page-title">Património Líquido</div>
-              <div class="ras-page-subtitle">Rumo ao Sucesso — Portefólio</div>
+      <main class="col-12 col-lg-9 col-xl-10">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h4 class="mb-0" id="pageTitle">Dashboard (V1)</h4>
+            <div class="text-secondary">Rumo ao Sucesso — Portefólio</div>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <span class="badge text-bg-success" id="badgeStatus">App a correr ✅</span>
+          </div>
+        </div>
+
+        <!-- TOP ACTIONS -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div class="fw-semibold">Atalhos rápidos</div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-primary btn-sm" id="btnAddMovement">Adicionar movimento (em breve)</button>
+              <button class="btn btn-outline-secondary btn-sm" id="btnExportJson">Exportar JSON</button>
+              <button class="btn btn-outline-secondary btn-sm" id="btnImportJson">Importar JSON</button>
+              <button class="btn btn-outline-secondary btn-sm" id="btnLoadDemo">Carregar Demo</button>
+              <button class="btn btn-outline-danger btn-sm" id="btnWipeAll">Limpar dados</button>
             </div>
           </div>
+        </div>
 
-          <div class="ras-topbar__right">
-            <span class="badge text-bg-success" id="badgeHealth">App a correr ✅</span>
-          </div>
-        </header>
+        <!-- SECTION: PATRIMONIO -->
+        <section id="sec-patrimonio" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h5 class="mb-1">Património Líquido</h5>
+              <div class="text-secondary small mb-3">
+                Soma de ativos atuais + fundos parados + banco Codeconnect. Lucro = valorização + juros.
+              </div>
 
-        <section class="container-fluid py-3">
-          <!-- CARDS -->
-          <div class="row g-3">
-            <div class="col-12 col-lg-6">
-              <div class="card border-0 shadow-sm rounded-4 h-100">
-                <div class="card-body">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <h5 class="mb-0">Investido Total</h5>
-                    <span class="text-secondary small">Regra 2</span>
+              <div class="row g-3">
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Total investido (ativos)</div>
+                    <div class="fs-3 fw-bold" id="plTotalInvestido">0,00 €</div>
+                    <div class="small text-secondary">Ações + Cripto + P2P</div>
                   </div>
-                  <div class="ras-metric" id="mInvestido">—</div>
-                  <div class="text-secondary small">
-                    Soma de todas as <strong>saídas</strong>.
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Ativos atuais</div>
+                    <div class="fs-3 fw-bold" id="plAtivosAtuais">0,00 €</div>
+                    <div class="small text-secondary">Ações + Cripto + P2P (final)</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Lucro total (valorização)</div>
+                    <div class="fs-3 fw-bold" id="plLucroTotal">0,00 €</div>
+                    <div class="small text-secondary">% lucro geral: <span id="plPctLucro">0,00%</span></div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Património total</div>
+                    <div class="fs-3 fw-bold" id="plPatrimonioTotal">0,00 €</div>
+                    <div class="small text-secondary">+ Fundos parados + Banco Codeconnect</div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="col-12 col-lg-6">
-              <div class="card border-0 shadow-sm rounded-4 h-100">
-                <div class="card-body">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <h5 class="mb-0">Saldo Líquido</h5>
-                    <span class="text-secondary small">Entradas − Saídas</span>
-                  </div>
-                  <div class="ras-metric" id="mSaldo">—</div>
-                  <div class="text-secondary small">
-                    Entradas (dividendos/juros/… ) menos Saídas (compras/comissões/impostos/…).
-                  </div>
+              <hr class="my-3"/>
+
+              <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Banco Codeconnect (€)</label>
+                  <input id="inpBancoCodeconnect" type="number" step="0.01" class="form-control" placeholder="ex: 5000">
+                </div>
+                <div class="col-12 col-md-4">
+                  <button id="btnSaveBanco" class="btn btn-primary w-100">Guardar</button>
+                </div>
+                <div class="col-12 col-md-4 text-secondary small">
+                  Nota: este valor é manual (por enquanto). Os outros vêm das tuas listas.
                 </div>
               </div>
-            </div>
 
-            <div class="col-12">
-              <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-body">
-                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
-                    <div>
-                      <h5 class="mb-0">Atalhos rápidos</h5>
-                      <div class="text-secondary small">
-                        Movimentos + backup (JSON)
-                      </div>
-                    </div>
-
-                    <div class="d-flex flex-wrap gap-2">
-                      <button id="btnOpenAdd" type="button" class="btn btn-primary">
-                        Adicionar movimento
-                      </button>
-
-                      <button id="btnExportJSON" type="button" class="btn btn-outline-secondary">
-                        Exportar JSON
-                      </button>
-
-                      <button id="btnImportJSON" type="button" class="btn btn-outline-secondary">
-                        Importar JSON
-                      </button>
-
-                      <button id="btnLoadDemo" type="button" class="btn btn-outline-dark">
-                        Carregar Demo
-                      </button>
-
-                      <button id="btnClearData" type="button" class="btn btn-outline-danger">
-                        Limpar dados
-                      </button>
-
-                      <!-- input escondido para importar -->
-                      <input id="fileImport" type="file" accept="application/json" class="d-none" />
-                    </div>
-                  </div>
-
-                  <hr class="my-3" />
-
-                  <div class="row g-3">
-                    <div class="col-12 col-md-6 col-lg-3">
-                      <div class="ras-kpi">
-                        <div class="ras-kpi__label">Total Entradas</div>
-                        <div class="ras-kpi__value" id="kEntradas">—</div>
-                      </div>
-                    </div>
-                    <div class="col-12 col-md-6 col-lg-3">
-                      <div class="ras-kpi">
-                        <div class="ras-kpi__label">Total Saídas</div>
-                        <div class="ras-kpi__value" id="kSaidas">—</div>
-                      </div>
-                    </div>
-                    <div class="col-12 col-md-6 col-lg-3">
-                      <div class="ras-kpi">
-                        <div class="ras-kpi__label">Nº Movimentos</div>
-                        <div class="ras-kpi__value" id="kCount">—</div>
-                      </div>
-                    </div>
-                    <div class="col-12 col-md-6 col-lg-3">
-                      <div class="ras-kpi">
-                        <div class="ras-kpi__label">Última atualização</div>
-                        <div class="ras-kpi__value" id="kUpdated">—</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <hr class="my-3" />
-
-                  <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                      <thead>
-                        <tr>
-                          <th>Data</th>
-                          <th>Tipo</th>
-                          <th>Categoria</th>
-                          <th>Classe</th>
-                          <th>Descrição</th>
-                          <th class="text-end">Montante (€)</th>
-                          <th class="text-end">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody id="movementsTbody"></tbody>
-                    </table>
-                  </div>
-
-                  <div class="text-secondary small">
-                    Exportar JSON = backup. Importar JSON = recuperar/migrar.  
-                    Dados reais ficam privados no teu dispositivo.
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
-        <!-- MODAL -->
-        <div id="modalBackdrop" class="ras-backdrop d-none" aria-hidden="true"></div>
-        <div id="modalAdd" class="ras-modal d-none" role="dialog" aria-modal="true">
-          <div class="ras-modal__card">
-            <div class="ras-modal__header">
-              <div>
-                <div class="fw-bold">Adicionar movimento</div>
-                <div class="small text-secondary">Regra 2 (entrada/saída)</div>
+        <!-- SECTION: ACOES + DIVIDENDOS -->
+        <section id="sec-acoes" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Ações + Dividendos</h5>
+                <button class="btn btn-outline-danger btn-sm" id="btnStocksWipe">Limpar tudo</button>
               </div>
-              <button id="btnCloseAdd" type="button" class="btn btn-sm btn-outline-secondary">
-                ✕
-              </button>
-            </div>
+              <div class="text-secondary small mb-3">Ações (em cima) + Dividendos (em baixo). Dividendos usam automaticamente o nº ações por ticker.</div>
 
-            <div class="ras-modal__body">
-              <div class="row g-2">
-                <div class="col-12 col-md-4">
-                  <label class="form-label">Data</label>
-                  <input id="fDate" type="date" class="form-control" />
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Total Investido em Ações</div>
+                    <div class="fs-4 fw-bold" id="stTotalInvest">0,00 €</div>
+                  </div>
                 </div>
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label">Tipo</label>
-                  <select id="fType" class="form-select">
-                    <option value="entrada">Entrada</option>
-                    <option value="saida">Saída</option>
-                  </select>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Valor Atual</div>
+                    <div class="fs-4 fw-bold" id="stTotalCurrent">0,00 €</div>
+                  </div>
                 </div>
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label">Montante (€)</label>
-                  <input
-                    id="fAmount"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.01"
-                    class="form-control"
-                    placeholder="ex.: 100"
-                  />
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Lucro</div>
+                    <div class="fs-4 fw-bold" id="stTotalProfit">0,00 €</div>
+                  </div>
                 </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Categoria</label>
-                  <select id="fCategory" class="form-select">
-                    <option>Dinheiro colocado</option>
-                    <option>Compra/Reforço</option>
-                    <option>Dividendos</option>
-                    <option>Juros</option>
-                    <option>Cashback</option>
-                    <option>Venda/Realização</option>
-                    <option>Comissões</option>
-                    <option>Impostos</option>
-                    <option>Levantamento</option>
-                    <option>Outro</option>
-                  </select>
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Classe</label>
-                  <select id="fClass" class="form-select">
-                    <option>Caixa</option>
-                    <option>Ações</option>
-                    <option>ETF</option>
-                    <option>Cripto</option>
-                    <option>P2P</option>
-                    <option>Fundo parado</option>
-                    <option>Outra</option>
-                  </select>
-                </div>
-
-                <div class="col-12">
-                  <label class="form-label">Descrição</label>
-                  <input
-                    id="fDesc"
-                    type="text"
-                    class="form-control"
-                    placeholder="ex.: Reforço XTB / Dividendo ASML / Comissão Degiro"
-                  />
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">%</div>
+                    <div class="fs-4 fw-bold" id="stTotalPct">0,00%</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="ras-modal__footer">
-              <button id="btnSaveMove" type="button" class="btn btn-primary">
-                Guardar
-              </button>
-              <button id="btnCancelMove" type="button" class="btn btn-outline-secondary">
-                Cancelar
-              </button>
+              <!-- ACOES FORM -->
+              <div class="border rounded p-3 bg-white mb-3">
+                <div class="fw-semibold mb-2">Ações</div>
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Ticker</label>
+                    <input id="stTicker" class="form-control" placeholder="ex: META">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Nº ações</label>
+                    <input id="stQty" type="number" step="1" class="form-control" placeholder="ex: 3">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Preço médio</label>
+                    <input id="stAvg" type="number" step="0.0001" class="form-control" placeholder="ex: 200">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Preço atual</label>
+                    <input id="stCur" type="number" step="0.0001" class="form-control" placeholder="ex: 230">
+                  </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <button class="btn btn-primary" id="stAdd">Adicionar</button>
+                  <button class="btn btn-outline-secondary" id="stCancelEdit">Cancelar edição</button>
+                </div>
+              </div>
+
+              <div class="table-responsive bg-white border rounded">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Ticker</th>
+                      <th class="text-end">Nº ações</th>
+                      <th class="text-end">Preço médio</th>
+                      <th class="text-end">Preço atual</th>
+                      <th class="text-end">Investido</th>
+                      <th class="text-end">Lucro</th>
+                      <th class="text-end">%</th>
+                      <th class="text-end">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stTable"></tbody>
+                </table>
+              </div>
+
+              <div class="text-secondary small mt-2">
+                Nota: ao alterar o nº de ações aqui, o bloco de dividendos usa automaticamente esse nº por ticker.
+              </div>
+
+              <hr class="my-4"/>
+
+              <!-- DIVIDENDOS -->
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="fw-semibold">Dividendos</div>
+                <button class="btn btn-outline-danger btn-sm" id="btnDivWipe">Limpar tudo</button>
+              </div>
+
+              <div class="border rounded p-3 bg-white mt-2 mb-3">
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Ticker</label>
+                    <select id="dvTicker" class="form-select"></select>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Nº ações (auto)</label>
+                    <input id="dvQtyAuto" class="form-control" disabled>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Dividendo/ano por ação (€)</label>
+                    <input id="dvYearPerShare" type="number" step="0.0001" class="form-control" placeholder="ex: 0.50">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Pagamentos</label>
+                    <select id="dvPay" class="form-select">
+                      <option value="12">Mensal</option>
+                      <option value="4">Trimestral</option>
+                      <option value="2">Semestral</option>
+                      <option value="1">Anual</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <button class="btn btn-primary" id="dvAdd">Adicionar</button>
+                  <button class="btn btn-outline-secondary" id="dvCancelEdit">Cancelar edição</button>
+                </div>
+              </div>
+
+              <div class="table-responsive bg-white border rounded">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Ticker</th>
+                      <th class="text-end">Nº ações</th>
+                      <th class="text-end">€/ano por ação</th>
+                      <th class="text-end">Recebido/ano</th>
+                      <th class="text-end">/mês</th>
+                      <th class="text-end">/dia</th>
+                      <th class="text-end">Por pagamento</th>
+                      <th class="text-end">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dvTable"></tbody>
+                </table>
+              </div>
+
+              <div class="text-secondary small mt-2">
+                Dica: se um ticker não aparece aqui, primeiro adiciona-o no bloco de ações.
+              </div>
+
             </div>
           </div>
-        </div>
-      </main>
+        </section>
+
+        <!-- SECTION: CRIPTO -->
+        <section id="sec-cripto" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Cripto</h5>
+                <button class="btn btn-outline-danger btn-sm" id="btnCryptoWipe">Limpar tudo</button>
+              </div>
+              <div class="text-secondary small mb-3">Quase igual às ações: moeda, investido, quantidade, preço atual, valor atual, lucro e %.</div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Total investido</div>
+                    <div class="fs-4 fw-bold" id="crTotalInvest">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Valor atual</div>
+                    <div class="fs-4 fw-bold" id="crTotalCurrent">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Lucro</div>
+                    <div class="fs-4 fw-bold" id="crTotalProfit">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">%</div>
+                    <div class="fs-4 fw-bold" id="crTotalPct">0,00%</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border rounded p-3 bg-white mb-3">
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Moeda</label>
+                    <input id="crCoin" class="form-control" placeholder="ex: BTC / ETH / SOL">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">€ Investido</label>
+                    <input id="crInvest" type="number" step="0.01" class="form-control" placeholder="ex: 500">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Quantidade</label>
+                    <input id="crQty" type="number" step="0.00000001" class="form-control" placeholder="ex: 0.01">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Preço atual (€/moeda)</label>
+                    <input id="crPrice" type="number" step="0.0001" class="form-control" placeholder="ex: 60000">
+                  </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <button class="btn btn-primary" id="crAdd">Adicionar</button>
+                  <button class="btn btn-outline-secondary" id="crCancelEdit">Cancelar edição</button>
+                </div>
+              </div>
+
+              <div class="table-responsive bg-white border rounded">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Moeda</th>
+                      <th class="text-end">€ Investido</th>
+                      <th class="text-end">Quantidade</th>
+                      <th class="text-end">Preço atual</th>
+                      <th class="text-end">Valor atual</th>
+                      <th class="text-end">Lucro</th>
+                      <th class="text-end">%</th>
+                      <th class="text-end">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="crTable"></tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION: P2P -->
+        <section id="sec-p2p" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">P2P</h5>
+                <button class="btn btn-outline-danger btn-sm" id="btnP2PWipe">Limpar tudo</button>
+              </div>
+              <div class="text-secondary small mb-3">
+                Plataforma + projeto + valor + % anual + anos (ou datas). Calcula valor final (juros compostos anuais), lucro e %.
+                Faz também média de lucro (%).
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Total investido</div>
+                    <div class="fs-4 fw-bold" id="p2Invest">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Valor final (estimado)</div>
+                    <div class="fs-4 fw-bold" id="p2Final">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Lucro</div>
+                    <div class="fs-4 fw-bold" id="p2Profit">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Média lucro (%)</div>
+                    <div class="fs-4 fw-bold" id="p2AvgPct">0,00%</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border rounded p-3 bg-white mb-3">
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Plataforma</label>
+                    <input id="p2Platform" class="form-control" placeholder="ex: Mintos">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Projeto</label>
+                    <input id="p2Project" class="form-control" placeholder="ex: Projeto X">
+                  </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">€ Investido</label>
+                    <input id="p2Amount" type="number" step="0.01" class="form-control" placeholder="ex: 1000">
+                  </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">% anual</label>
+                    <input id="p2Rate" type="number" step="0.01" class="form-control" placeholder="ex: 9.5">
+                  </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Anos (opcional)</label>
+                    <input id="p2Years" type="number" step="0.01" class="form-control" placeholder="ex: 2">
+                  </div>
+
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Início (opcional)</label>
+                    <input id="p2Start" type="date" class="form-control">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Fim (opcional)</label>
+                    <input id="p2End" type="date" class="form-control">
+                  </div>
+
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <button class="btn btn-primary" id="p2Add">Adicionar</button>
+                  <button class="btn btn-outline-secondary" id="p2CancelEdit">Cancelar edição</button>
+                </div>
+                <div class="text-secondary small mt-2">
+                  Se preencheres datas, o programa calcula os anos automaticamente (e ignora o campo “anos”).
+                </div>
+              </div>
+
+              <div class="table-responsive bg-white border rounded">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Plataforma</th>
+                      <th>Projeto</th>
+                      <th class="text-end">€ Investido</th>
+                      <th class="text-end">% anual</th>
+                      <th class="text-end">Anos</th>
+                      <th class="text-end">Valor final</th>
+                      <th class="text-end">Lucro</th>
+                      <th class="text-end">%</th>
+                      <th class="text-end">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="p2Table"></tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION: FUNDOS PARADOS -->
+        <section id="sec-fundos" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Fundos Parados</h5>
+                <button class="btn btn-outline-danger btn-sm" id="btnFundsWipe">Limpar tudo</button>
+              </div>
+              <div class="text-secondary small mb-3">
+                Plataforma + valor + juro (mensal ou anual). Mostra % e juro anual estimado. Estes valores entram no Património Líquido como “cash”.
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-4">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Total fundos parados (€)</div>
+                    <div class="fs-4 fw-bold" id="fdTotal">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Juro anual estimado (€)</div>
+                    <div class="fs-4 fw-bold" id="fdYearProfit">0,00 €</div>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="border rounded p-3 bg-white h-100">
+                    <div class="text-secondary small">Taxa anual média</div>
+                    <div class="fs-4 fw-bold" id="fdAvgRate">0,00%</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border rounded p-3 bg-white mb-3">
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label">Plataforma</label>
+                    <input id="fdPlatform" class="form-control" placeholder="ex: Trade Republic">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">€ Valor</label>
+                    <input id="fdAmount" type="number" step="0.01" class="form-control" placeholder="ex: 2000">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Juro (%)</label>
+                    <input id="fdRate" type="number" step="0.01" class="form-control" placeholder="ex: 3.5">
+                  </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Periodicidade</label>
+                    <select id="fdFreq" class="form-select">
+                      <option value="annual">Anual</option>
+                      <option value="monthly">Mensal</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <button class="btn btn-primary" id="fdAdd">Adicionar</button>
+                  <button class="btn btn-outline-secondary" id="fdCancelEdit">Cancelar edição</button>
+                </div>
+              </div>
+
+              <div class="table-responsive bg-white border rounded">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Plataforma</th>
+                      <th class="text-end">€ Valor</th>
+                      <th class="text-end">Taxa anual (%)</th>
+                      <th class="text-end">Juro/ano (€)</th>
+                      <th class="text-end">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fdTable"></tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- PLACEHOLDERS -->
+        <section id="sec-vendas" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h5>Vendas / Realizações</h5>
+              <section id="vendasSection" class="app-section d-none">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div>
+      <h3 class="mb-0">Vendas / Realizações</h3>
+      <div class="text-secondary small">Regista vendas totais/parciais e acompanha lucro realizado (com imposto estimado opcional).</div>
     </div>
 
-    <script src="./app.js"></script>
-  </body>
+    <div class="d-flex gap-2">
+      <select id="filterYear" class="form-select form-select-sm" style="max-width:140px">
+        <option value="all">Todos</option>
+      </select>
+
+      <select id="filterClasse" class="form-select form-select-sm" style="max-width:160px">
+        <option value="all">Todas</option>
+        <option value="acoes">Ações/ETF</option>
+        <option value="cripto">Cripto</option>
+        <option value="outros">Outros</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Cards topo -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-3">
+      <div class="card p-2">
+        <div class="small text-secondary">Total Investido (vendas)</div>
+        <div class="fs-4 fw-bold" id="t_invested">0,00 €</div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-2">
+        <div class="small text-secondary">Total Recebido</div>
+        <div class="fs-4 fw-bold" id="t_received">0,00 €</div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-2">
+        <div class="small text-secondary">Lucro/Prejuízo Realizado</div>
+        <div class="fs-4 fw-bold" id="t_profit">0,00 €</div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-2">
+        <div class="small text-secondary">% Realizado</div>
+        <div class="fs-4 fw-bold" id="t_profit_pct">0,00%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Imposto -->
+  <div class="card p-2 mb-3">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <input id="toggleTax" type="checkbox" class="form-check-input" checked />
+        <label for="toggleTax" class="form-check-label">Mostrar imposto estimado</label>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-secondary small">Taxa (%)</span>
+        <input id="taxRate" type="number" class="form-control form-control-sm" style="width:90px" value="28" min="0" max="100" step="0.1" />
+      </div>
+
+      <div id="taxBox" class="ms-auto">
+        <span class="text-secondary small me-2">Imposto estimado (sobre lucro positivo)</span>
+        <strong id="t_tax">0,00 €</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="card p-3 mb-3">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <strong>Nova realização</strong>
+      <button id="btnVendasClearAll" class="btn btn-sm btn-outline-danger">Limpar tudo</button>
+    </div>
+
+    <form id="tradeForm" class="row g-2">
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Data</label>
+        <input id="tradeDate" type="date" class="form-control" required />
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Classe</label>
+        <select id="tradeClasse" class="form-select" required>
+          <option value="acoes">Ações/ETF</option>
+          <option value="cripto">Cripto</option>
+          <option value="outros">Outros</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Ticker/Moeda</label>
+        <input id="tradeTicker" type="text" class="form-control" placeholder="ex: META / BTC" required />
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Quantidade vendida</label>
+        <input id="tradeQty" type="number" class="form-control" step="0.00000001" min="0" required />
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Preço médio (compra)</label>
+        <input id="tradeAvgBuy" type="number" class="form-control" step="0.00000001" min="0" required />
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Preço de venda</label>
+        <input id="tradeSellPrice" type="number" class="form-control" step="0.00000001" min="0" required />
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small text-secondary">Comissões/Taxas</label>
+        <input id="tradeFees" type="number" class="form-control" step="0.01" min="0" value="0" />
+      </div>
+
+      <div class="col-md-10">
+        <label class="form-label small text-secondary">Notas (opcional)</label>
+        <input id="tradeNotes" type="text" class="form-control" placeholder="ex: venda parcial para tirar 100€ de lucro" />
+      </div>
+
+      <div class="col-12 d-flex gap-2 mt-2">
+        <button id="btnTradeAdd" class="btn btn-primary">Adicionar</button>
+        <button id="btnTradeCancel" class="btn btn-outline-secondary d-none">Cancelar edição</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tabela -->
+  <div class="card p-3">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr class="text-secondary">
+            <th>Data</th>
+            <th>Classe</th>
+            <th>Ticker</th>
+            <th>Qty</th>
+            <th>Médio</th>
+            <th>Venda</th>
+            <th>Investido</th>
+            <th>Recebido</th>
+            <th>Lucro</th>
+            <th>%</th>
+            <th>Comissões</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tradesTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+            </div>
+          </div>
+        </section>
+
+        <section id="sec-graficos" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h5>Gráficos</h5>
+              <div class="text-secondary">Em breve.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- <section id="sec-ia" class="dash-section">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h5>Resumo por IA</h5>
+              <div class="text-secondary">Em breve.</div>
+            </div>
+          </div>
+        </section> -->
+
+        <!-- VENDAS / REALIZAÇÕES -->
+
+
+
+      </main>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+  <script src="./vendas.js"></script>
+
+</body>
 </html>
