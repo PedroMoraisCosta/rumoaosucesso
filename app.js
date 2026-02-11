@@ -9,7 +9,7 @@
 
   const DEFAULT_DATA = {
     meta: { lastUpdated: null },
-    patrimonio: { bancoCodeconnect: 0 },
+    patrimonio: { bancoPessoal: 0 },
     stocks: [],
     dividends: [],
     crypto: [],
@@ -79,7 +79,7 @@
   // Navigation / Sections
   // -----------------------
   const SECTION_MAP = {
-    patrimonio: { title: "Património Líquido", el: "sec-patrimonio" },
+    patrimonio: { title: "Património", el: "sec-patrimonio" },
     acoes: { title: "Ações + Dividendos", el: "sec-acoes" },
     cripto: { title: "Cripto", el: "sec-cripto" },
     p2p: { title: "P2P", el: "sec-p2p" },
@@ -105,7 +105,8 @@
     const target = $(SECTION_MAP[key].el);
     if (target) target.style.display = "block";
     setActiveMenu(key);
-    $("pageTitle").textContent = SECTION_MAP[key].title;
+    const t = $("pageTitle");
+    if (t) t.textContent = SECTION_MAP[key].title;
   }
 
   function readHash() {
@@ -122,7 +123,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `rumo-ao-sucesso-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `rumo-ao-sucesso-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -140,6 +141,13 @@
         const text = await file.text();
         const obj = JSON.parse(text);
         const merged = { ...structuredClone(DEFAULT_DATA), ...obj };
+
+        // Migração simples: se vier bancoCodeconnect antigo, passa para bancoPessoal
+        if (merged?.patrimonio?.bancoCodeconnect != null && merged?.patrimonio?.bancoPessoal == null) {
+          merged.patrimonio.bancoPessoal = merged.patrimonio.bancoCodeconnect;
+          delete merged.patrimonio.bancoCodeconnect;
+        }
+
         setData(merged);
         renderAll();
         alert("Importado com sucesso ✅");
@@ -156,6 +164,13 @@
       if (!res.ok) throw new Error("Falha a carregar demo.json");
       const obj = await res.json();
       const merged = { ...structuredClone(DEFAULT_DATA), ...obj };
+
+      // Migração demo (se tiver bancoCodeconnect)
+      if (merged?.patrimonio?.bancoCodeconnect != null && merged?.patrimonio?.bancoPessoal == null) {
+        merged.patrimonio.bancoPessoal = merged.patrimonio.bancoCodeconnect;
+        delete merged.patrimonio.bancoCodeconnect;
+      }
+
       setData(merged);
       renderAll();
       alert("Demo carregada ✅");
@@ -199,7 +214,7 @@
     return diffMs / (1000 * 60 * 60 * 24 * 365.25);
   }
 
-  // P2P agora = JUROS SIMPLES
+  // P2P = JUROS SIMPLES
   function calcP2PRow(row) {
     const invested = safeNum(row.amount);
     const rate = safeNum(row.rate);
@@ -208,7 +223,7 @@
     if (years == null) years = safeNum(row.years);
     if (!Number.isFinite(years) || years <= 0) years = 1;
 
-    const profit = invested * (rate / 100) * years;     // simples
+    const profit = invested * (rate / 100) * years; // simples
     const finalValue = invested + profit;
     const pct = invested > 0 ? (profit / invested) * 100 : 0;
 
@@ -228,7 +243,7 @@
         ? data.p2p.reduce((a, x) => a + calcP2PRow(x).pct, 0) / data.p2p.length
         : 0;
 
-    // total anual estimado (simples): soma de invested * rate
+    // total anual estimado (simples)
     const profitPerYear = data.p2p.reduce((a, x) => a + calcP2PRow(x).profitPerYear, 0);
 
     return { invested, finals, profit, avgPct, profitPerYear };
@@ -238,10 +253,8 @@
   function annualRateFromFunds(rate, freq) {
     const r = safeNum(rate) / 100;
     if (freq === "monthly") {
-      // taxa mensal -> taxa anual efetiva composta
       return (Math.pow(1 + r, 12) - 1) * 100;
     }
-    // anual já é anual
     return r * 100;
   }
 
@@ -281,7 +294,7 @@
   }
 
   // -----------------------
-  // Patrimonio Liquido (automatic + total juros)
+  // Patrimonio (auto + ganhos recorrentes)
   // -----------------------
   function renderPatrimonio() {
     const data = getData();
@@ -302,98 +315,48 @@
 
     const pctLucro = totalInvestidoAtivos > 0 ? (lucroTotal / totalInvestidoAtivos) * 100 : 0;
 
-    const banco = safeNum(data.patrimonio?.bancoCodeconnect);
+    const banco = safeNum(data.patrimonio?.bancoPessoal);
     const patrimonioTotal = ativosAtuais + fd.total + banco;
 
-    // ✅ total anual de “juros/ganhos recorrentes” (dividendos + p2p + fundos)
+    // total anual “recorrente” (estimativa)
     const totalRecorrenteAno = dv.year + p2.profitPerYear + fd.yearProfit;
     const totalRecorrenteMes = totalRecorrenteAno / 12;
     const totalRecorrenteDia = totalRecorrenteAno / 365.25;
 
-    // Caixa principal (já existia)
-    $("plTotalInvestido").textContent = fmtEUR(totalInvestidoAtivos);
-    $("plAtivosAtuais").textContent = fmtEUR(ativosAtuais);
-    $("plLucroTotal").textContent = fmtEUR(lucroTotal);
-    $("plPctLucro").textContent = fmtPct(pctLucro);
-    $("plPatrimonioTotal").textContent = fmtEUR(patrimonioTotal);
-    $("inpBancoCodeconnect").value = String(banco || 0);
+    // KPIs principais
+    if ($("plTotalInvestido")) $("plTotalInvestido").textContent = fmtEUR(totalInvestidoAtivos);
+    if ($("plAtivosAtuais")) $("plAtivosAtuais").textContent = fmtEUR(ativosAtuais);
+    if ($("plLucroTotal")) $("plLucroTotal").textContent = fmtEUR(lucroTotal);
+    if ($("plPctLucro")) $("plPctLucro").textContent = fmtPct(pctLucro);
+    if ($("plPatrimonioTotal")) $("plPatrimonioTotal").textContent = fmtEUR(patrimonioTotal);
 
-    // Inject de 1 bloco extra “Juros/Dividendos anuais” (sem mexer no HTML)
-    // Se já existe, só atualiza.
-    const host = $("sec-patrimonio").querySelector(".card-body");
-    let box = $("plJurosBox");
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "plJurosBox";
-      box.className = "mt-3 border rounded p-3 bg-white";
-      box.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Total de juros + dividendos (estimativa)</div>
-          <div class="small text-secondary">Dividendos + P2P + Fundos Parados</div>
-        </div>
-        <div class="row g-3 mt-1">
-          <div class="col-12 col-md-4">
-            <div class="text-secondary small">Ano</div>
-            <div class="fs-4 fw-bold" id="plRecAno">0,00 €</div>
-          </div>
-          <div class="col-12 col-md-4">
-            <div class="text-secondary small">Mês</div>
-            <div class="fs-4 fw-bold" id="plRecMes">0,00 €</div>
-          </div>
-          <div class="col-12 col-md-4">
-            <div class="text-secondary small">Dia</div>
-            <div class="fs-4 fw-bold" id="plRecDia">0,00 €</div>
-          </div>
-        </div>
+    // Banco pessoal
+    const inpB = $("inpBancoPessoal");
+    if (inpB) inpB.value = String(banco || 0);
 
-        <hr class="my-3"/>
+    // Recorrentes (totais)
+    if ($("plRecAno")) $("plRecAno").textContent = fmtEUR(totalRecorrenteAno);
+    if ($("plRecMes")) $("plRecMes").textContent = fmtEUR(totalRecorrenteMes);
+    if ($("plRecDia")) $("plRecDia").textContent = fmtEUR(totalRecorrenteDia);
 
-        <div class="row g-3">
-          <div class="col-12 col-md-4">
-            <div class="text-secondary small">Dividendos (ano)</div>
-            <div class="fw-bold" id="plDvAno">0,00 €</div>
-            <div class="small text-secondary">mês: <span id="plDvMes">0,00 €</span> | dia: <span id="plDvDia">0,00 €</span></div>
-          </div>
-          <div class="col-12 col-md-4">
-            <div class="text-secondary small">P2P (juros/ano)</div>
-            <div class="fw-bold" id="plP2Ano">0,00 €</div>
-            <div class="small text-secondary">mês: <span id="plP2Mes">0,00 €</span> | dia: <span id="plP2Dia">0,00 €</span></div>
-          </div>
-          <div class="col-12 col-md-4">
-            <div class="text-secondary small">Fundos (juros/ano)</div>
-            <div class="fw-bold" id="plFdAno">0,00 €</div>
-            <div class="small text-secondary">mês: <span id="plFdMes">0,00 €</span> | dia: <span id="plFdDia">0,00 €</span></div>
-          </div>
-        </div>
+    // Breakdown
+    if ($("plDvAno")) $("plDvAno").textContent = fmtEUR(dv.year);
+    if ($("plDvMes")) $("plDvMes").textContent = fmtEUR(dv.month);
+    if ($("plDvDia")) $("plDvDia").textContent = fmtEUR(dv.day);
 
-        <div class="small text-secondary mt-2">
-          Nota: isto é uma estimativa anual (run-rate). Não é “realizado” automaticamente sem datas/movimentos.
-        </div>
-      `;
-      host.appendChild(box);
-    }
+    if ($("plP2Ano")) $("plP2Ano").textContent = fmtEUR(p2.profitPerYear);
+    if ($("plP2Mes")) $("plP2Mes").textContent = fmtEUR(p2.profitPerYear / 12);
+    if ($("plP2Dia")) $("plP2Dia").textContent = fmtEUR(p2.profitPerYear / 365.25);
 
-    $("plRecAno").textContent = fmtEUR(totalRecorrenteAno);
-    $("plRecMes").textContent = fmtEUR(totalRecorrenteMes);
-    $("plRecDia").textContent = fmtEUR(totalRecorrenteDia);
-
-    $("plDvAno").textContent = fmtEUR(dv.year);
-    $("plDvMes").textContent = fmtEUR(dv.month);
-    $("plDvDia").textContent = fmtEUR(dv.day);
-
-    $("plP2Ano").textContent = fmtEUR(p2.profitPerYear);
-    $("plP2Mes").textContent = fmtEUR(p2.profitPerYear / 12);
-    $("plP2Dia").textContent = fmtEUR(p2.profitPerYear / 365.25);
-
-    $("plFdAno").textContent = fmtEUR(fd.yearProfit);
-    $("plFdMes").textContent = fmtEUR(fd.monthProfit);
-    $("plFdDia").textContent = fmtEUR(fd.dayProfit);
+    if ($("plFdAno")) $("plFdAno").textContent = fmtEUR(fd.yearProfit);
+    if ($("plFdMes")) $("plFdMes").textContent = fmtEUR(fd.monthProfit);
+    if ($("plFdDia")) $("plFdDia").textContent = fmtEUR(fd.dayProfit);
   }
 
-  function saveBanco() {
+  function saveBancoPessoal() {
     const data = getData();
     data.patrimonio = data.patrimonio || {};
-    data.patrimonio.bancoCodeconnect = safeNum($("inpBancoCodeconnect").value);
+    data.patrimonio.bancoPessoal = safeNum($("inpBancoPessoal")?.value);
     setData(data);
     renderPatrimonio();
   }
@@ -431,10 +394,10 @@
   }
 
   function clearStockForm() {
-    $("stTicker").value = "";
-    $("stQty").value = "";
-    $("stAvg").value = "";
-    $("stCur").value = "";
+    if ($("stTicker")) $("stTicker").value = "";
+    if ($("stQty")) $("stQty").value = "";
+    if ($("stAvg")) $("stAvg").value = "";
+    if ($("stCur")) $("stCur").value = "";
     stEditingId = null;
   }
 
@@ -442,12 +405,13 @@
     const data = getData();
     const st = calcStocks(data);
 
-    $("stTotalInvest").textContent = fmtEUR(st.invested);
-    $("stTotalCurrent").textContent = fmtEUR(st.current);
-    $("stTotalProfit").textContent = fmtEUR(st.profit);
-    $("stTotalPct").textContent = fmtPct(st.pct);
+    if ($("stTotalInvest")) $("stTotalInvest").textContent = fmtEUR(st.invested);
+    if ($("stTotalCurrent")) $("stTotalCurrent").textContent = fmtEUR(st.current);
+    if ($("stTotalProfit")) $("stTotalProfit").textContent = fmtEUR(st.profit);
+    if ($("stTotalPct")) $("stTotalPct").textContent = fmtPct(st.pct);
 
     const tbody = $("stTable");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     for (const x of data.stocks) {
@@ -466,8 +430,8 @@
         <td class="text-end">${fmtEUR(profit)}</td>
         <td class="text-end">${fmtPct(pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}">Apagar</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -482,15 +446,15 @@
           const row = data2.stocks.find(r => r.id === id);
           if (!row) return;
           stEditingId = id;
-          $("stTicker").value = row.ticker;
-          $("stQty").value = row.qty;
-          $("stAvg").value = row.avg;
-          $("stCur").value = row.cur;
+          if ($("stTicker")) $("stTicker").value = row.ticker;
+          if ($("stQty")) $("stQty").value = row.qty;
+          if ($("stAvg")) $("stAvg").value = row.avg;
+          if ($("stCur")) $("stCur").value = row.cur;
         }
         if (act === "del") {
           if (!confirmDanger("Apagar esta ação?")) return;
           const data2 = getData();
-          const removedTicker = (data2.stocks.find(r=>r.id===id)?.ticker) || null;
+          const removedTicker = (data2.stocks.find(r => r.id === id)?.ticker) || null;
           data2.stocks = data2.stocks.filter(r => r.id !== id);
           if (removedTicker) data2.dividends = data2.dividends.filter(d => d.ticker !== removedTicker);
           setData(data2);
@@ -520,6 +484,7 @@
   function fillDividendTickerSelect() {
     const data = getData();
     const sel = $("dvTicker");
+    if (!sel) return;
     const current = sel.value;
     sel.innerHTML = "";
     const tickers = [...new Set(data.stocks.map(s => s.ticker))].sort();
@@ -535,9 +500,10 @@
 
   function updateDividendQtyAuto() {
     const data = getData();
-    const ticker = $("dvTicker").value;
+    const ticker = $("dvTicker")?.value;
     const stRow = data.stocks.find(s => s.ticker === ticker);
-    $("dvQtyAuto").value = stRow ? String(stRow.qty) : "0";
+    const inp = $("dvQtyAuto");
+    if (inp) inp.value = stRow ? String(stRow.qty) : "0";
   }
 
   function upsertDividend(row) {
@@ -549,7 +515,7 @@
     const yearPerShare = safeNum(row.yearPerShare);
     const payN = safeNum(row.payN);
     if (yearPerShare <= 0) return alert("Dividendo/ano por ação tem de ser > 0.");
-    if (![1,2,4,12].includes(payN)) return alert("Pagamentos inválidos.");
+    if (![1, 2, 4, 12].includes(payN)) return alert("Pagamentos inválidos.");
 
     if (dvEditingId) {
       const idx = data.dividends.findIndex(d => d.id === dvEditingId);
@@ -569,8 +535,8 @@
   }
 
   function clearDividendForm() {
-    $("dvYearPerShare").value = "";
-    $("dvPay").value = "12";
+    if ($("dvYearPerShare")) $("dvYearPerShare").value = "";
+    if ($("dvPay")) $("dvPay").value = "12";
     dvEditingId = null;
     updateDividendQtyAuto();
   }
@@ -580,6 +546,7 @@
     fillDividendTickerSelect();
 
     const tbody = $("dvTable");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     for (const d of data.dividends) {
@@ -601,8 +568,8 @@
         <td class="text-end">${fmtEUR(receivedDay)}</td>
         <td class="text-end">${fmtEUR(perPay)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${d.id}">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${d.id}">Apagar</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${d.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${d.id}" type="button">Apagar</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -617,10 +584,10 @@
           const row = data2.dividends.find(r => r.id === id);
           if (!row) return;
           dvEditingId = id;
-          $("dvTicker").value = row.ticker;
+          if ($("dvTicker")) $("dvTicker").value = row.ticker;
           updateDividendQtyAuto();
-          $("dvYearPerShare").value = row.yearPerShare;
-          $("dvPay").value = String(row.payN);
+          if ($("dvYearPerShare")) $("dvYearPerShare").value = row.yearPerShare;
+          if ($("dvPay")) $("dvPay").value = String(row.payN);
         }
         if (act === "del") {
           if (!confirmDanger("Apagar este dividendo?")) return;
@@ -676,10 +643,10 @@
   }
 
   function clearCryptoForm() {
-    $("crCoin").value = "";
-    $("crInvest").value = "";
-    $("crQty").value = "";
-    $("crPrice").value = "";
+    if ($("crCoin")) $("crCoin").value = "";
+    if ($("crInvest")) $("crInvest").value = "";
+    if ($("crQty")) $("crQty").value = "";
+    if ($("crPrice")) $("crPrice").value = "";
     crEditingId = null;
   }
 
@@ -687,12 +654,13 @@
     const data = getData();
     const c = calcCrypto(data);
 
-    $("crTotalInvest").textContent = fmtEUR(c.invested);
-    $("crTotalCurrent").textContent = fmtEUR(c.current);
-    $("crTotalProfit").textContent = fmtEUR(c.profit);
-    $("crTotalPct").textContent = fmtPct(c.pct);
+    if ($("crTotalInvest")) $("crTotalInvest").textContent = fmtEUR(c.invested);
+    if ($("crTotalCurrent")) $("crTotalCurrent").textContent = fmtEUR(c.current);
+    if ($("crTotalProfit")) $("crTotalProfit").textContent = fmtEUR(c.profit);
+    if ($("crTotalPct")) $("crTotalPct").textContent = fmtPct(c.pct);
 
     const tbody = $("crTable");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     for (const x of data.crypto) {
@@ -710,8 +678,8 @@
         <td class="text-end">${fmtEUR(profit)}</td>
         <td class="text-end">${fmtPct(pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}">Apagar</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -726,10 +694,10 @@
           const row = data2.crypto.find(r => r.id === id);
           if (!row) return;
           crEditingId = id;
-          $("crCoin").value = row.coin;
-          $("crInvest").value = row.invest;
-          $("crQty").value = row.qty;
-          $("crPrice").value = row.price;
+          if ($("crCoin")) $("crCoin").value = row.coin;
+          if ($("crInvest")) $("crInvest").value = row.invest;
+          if ($("crQty")) $("crQty").value = row.qty;
+          if ($("crPrice")) $("crPrice").value = row.price;
         }
         if (act === "del") {
           if (!confirmDanger("Apagar esta moeda?")) return;
@@ -789,13 +757,13 @@
   }
 
   function clearP2PForm() {
-    $("p2Platform").value = "";
-    $("p2Project").value = "";
-    $("p2Amount").value = "";
-    $("p2Rate").value = "";
-    $("p2Years").value = "";
-    $("p2Start").value = "";
-    $("p2End").value = "";
+    if ($("p2Platform")) $("p2Platform").value = "";
+    if ($("p2Project")) $("p2Project").value = "";
+    if ($("p2Amount")) $("p2Amount").value = "";
+    if ($("p2Rate")) $("p2Rate").value = "";
+    if ($("p2Years")) $("p2Years").value = "";
+    if ($("p2Start")) $("p2Start").value = "";
+    if ($("p2End")) $("p2End").value = "";
     p2EditingId = null;
   }
 
@@ -803,12 +771,13 @@
     const data = getData();
     const p = calcP2P(data);
 
-    $("p2Invest").textContent = fmtEUR(p.invested);
-    $("p2Final").textContent = fmtEUR(p.finals);
-    $("p2Profit").textContent = fmtEUR(p.profit);
-    $("p2AvgPct").textContent = fmtPct(p.avgPct);
+    if ($("p2Invest")) $("p2Invest").textContent = fmtEUR(p.invested);
+    if ($("p2Final")) $("p2Final").textContent = fmtEUR(p.finals);
+    if ($("p2Profit")) $("p2Profit").textContent = fmtEUR(p.profit);
+    if ($("p2AvgPct")) $("p2AvgPct").textContent = fmtPct(p.avgPct);
 
     const tbody = $("p2Table");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     for (const x of data.p2p) {
@@ -824,8 +793,8 @@
         <td class="text-end">${fmtEUR(r.profit)}</td>
         <td class="text-end">${fmtPct(r.pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}">Apagar</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -840,13 +809,13 @@
           const row = data2.p2p.find(r => r.id === id);
           if (!row) return;
           p2EditingId = id;
-          $("p2Platform").value = row.platform;
-          $("p2Project").value = row.project;
-          $("p2Amount").value = row.amount;
-          $("p2Rate").value = row.rate;
-          $("p2Years").value = row.years;
-          $("p2Start").value = row.start || "";
-          $("p2End").value = row.end || "";
+          if ($("p2Platform")) $("p2Platform").value = row.platform;
+          if ($("p2Project")) $("p2Project").value = row.project;
+          if ($("p2Amount")) $("p2Amount").value = row.amount;
+          if ($("p2Rate")) $("p2Rate").value = row.rate;
+          if ($("p2Years")) $("p2Years").value = row.years;
+          if ($("p2Start")) $("p2Start").value = row.start || "";
+          if ($("p2End")) $("p2End").value = row.end || "";
         }
         if (act === "del") {
           if (!confirmDanger("Apagar este projeto P2P?")) return;
@@ -902,10 +871,10 @@
   }
 
   function clearFundsForm() {
-    $("fdPlatform").value = "";
-    $("fdAmount").value = "";
-    $("fdRate").value = "";
-    $("fdFreq").value = "annual";
+    if ($("fdPlatform")) $("fdPlatform").value = "";
+    if ($("fdAmount")) $("fdAmount").value = "";
+    if ($("fdRate")) $("fdRate").value = "";
+    if ($("fdFreq")) $("fdFreq").value = "annual";
     fdEditingId = null;
   }
 
@@ -913,11 +882,12 @@
     const data = getData();
     const f = calcFunds(data);
 
-    $("fdTotal").textContent = fmtEUR(f.total);
-    $("fdYearProfit").textContent = fmtEUR(f.yearProfit);
-    $("fdAvgRate").textContent = fmtPct(f.avgRate);
+    if ($("fdTotal")) $("fdTotal").textContent = fmtEUR(f.total);
+    if ($("fdYearProfit")) $("fdYearProfit").textContent = fmtEUR(f.yearProfit);
+    if ($("fdAvgRate")) $("fdAvgRate").textContent = fmtPct(f.avgRate);
 
     const tbody = $("fdTable");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     for (const x of data.funds) {
@@ -935,16 +905,15 @@
         <td class="text-end">${fmtEUR(monthProfit)}</td>
         <td class="text-end">${fmtEUR(dayProfit)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}">Apagar</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
         </td>
       `;
       tbody.appendChild(tr);
     }
 
-    // ✅ Atualiza cabeçalho da tabela com mais 2 colunas (mês/dia) sem mexer no HTML
-    // Se ainda não alterou, altera uma vez.
-    const theadRow = $("fdTable").closest("table").querySelector("thead tr");
+    // Atualiza cabeçalho se ainda estiver “curto”
+    const theadRow = $("fdTable")?.closest("table")?.querySelector("thead tr");
     if (theadRow && theadRow.children.length === 5) {
       theadRow.innerHTML = `
         <th>Plataforma</th>
@@ -966,10 +935,10 @@
           const row = data2.funds.find(r => r.id === id);
           if (!row) return;
           fdEditingId = id;
-          $("fdPlatform").value = row.platform;
-          $("fdAmount").value = row.amount;
-          $("fdRate").value = row.rate;
-          $("fdFreq").value = row.freq || "annual";
+          if ($("fdPlatform")) $("fdPlatform").value = row.platform;
+          if ($("fdAmount")) $("fdAmount").value = row.amount;
+          if ($("fdRate")) $("fdRate").value = row.rate;
+          if ($("fdFreq")) $("fdFreq").value = row.freq || "annual";
         }
         if (act === "del") {
           if (!confirmDanger("Apagar este fundo parado?")) return;
@@ -999,9 +968,13 @@
     const s = requireSession();
     if (!s) return;
 
-    $("badgeMode").textContent = s.mode === "demo" ? "Modo: demo" : "Modo: local";
-    $("sessionEmail").textContent = s.email || "—";
-    $("sessionWhen").textContent = s.createdAt ? new Date(s.createdAt).toLocaleString("pt-PT") : "—";
+    const badge = $("badgeMode");
+    const email = $("sessionEmail");
+    const when = $("sessionWhen");
+
+    if (badge) badge.textContent = s.mode === "demo" ? "Modo: demo" : "Modo: local";
+    if (email) email.textContent = s.email || "—";
+    if (when) when.textContent = s.createdAt ? new Date(s.createdAt).toLocaleString("pt-PT") : "—";
   }
 
   function logout() {
@@ -1022,6 +995,12 @@
     renderFunds();
     renderPatrimonio();
   }
+// ✅ API global para outros módulos (ex: vendas.js) forçarem refresh imediato
+window.RAS = window.RAS || {};
+window.RAS.refresh = function () {
+  renderAll();
+  showSection(readHash());
+};
 
   // -----------------------
   // Events
@@ -1039,66 +1018,67 @@
       });
     });
 
-    $("btnExportJson").addEventListener("click", exportJSON);
-    $("btnImportJson").addEventListener("click", importJSON);
-    $("btnLoadDemo").addEventListener("click", loadDemo);
-    $("btnWipeAll").addEventListener("click", wipeAllData);
-    $("btnLogout").addEventListener("click", logout);
+    $("btnExportJson")?.addEventListener("click", exportJSON);
+    $("btnImportJson")?.addEventListener("click", importJSON);
+    $("btnLoadDemo")?.addEventListener("click", loadDemo);
+    $("btnWipeAll")?.addEventListener("click", wipeAllData);
+    $("btnLogout")?.addEventListener("click", logout);
 
-    $("btnSaveBanco").addEventListener("click", saveBanco);
+    // Banco pessoal
+    $("btnSaveBancoPessoal")?.addEventListener("click", saveBancoPessoal);
 
     // Stocks
-    $("stAdd").addEventListener("click", () => upsertStock({
-      ticker: $("stTicker").value,
-      qty: $("stQty").value,
-      avg: $("stAvg").value,
-      cur: $("stCur").value
+    $("stAdd")?.addEventListener("click", () => upsertStock({
+      ticker: $("stTicker")?.value,
+      qty: $("stQty")?.value,
+      avg: $("stAvg")?.value,
+      cur: $("stCur")?.value
     }));
-    $("stCancelEdit").addEventListener("click", clearStockForm);
-    $("btnStocksWipe").addEventListener("click", wipeStocksAll);
+    $("stCancelEdit")?.addEventListener("click", clearStockForm);
+    $("btnStocksWipe")?.addEventListener("click", wipeStocksAll);
 
     // Dividends
-    $("dvTicker").addEventListener("change", updateDividendQtyAuto);
-    $("dvAdd").addEventListener("click", () => upsertDividend({
-      ticker: $("dvTicker").value,
-      yearPerShare: $("dvYearPerShare").value,
-      payN: $("dvPay").value
+    $("dvTicker")?.addEventListener("change", updateDividendQtyAuto);
+    $("dvAdd")?.addEventListener("click", () => upsertDividend({
+      ticker: $("dvTicker")?.value,
+      yearPerShare: $("dvYearPerShare")?.value,
+      payN: $("dvPay")?.value
     }));
-    $("dvCancelEdit").addEventListener("click", clearDividendForm);
-    $("btnDivWipe").addEventListener("click", wipeDividendsAll);
+    $("dvCancelEdit")?.addEventListener("click", clearDividendForm);
+    $("btnDivWipe")?.addEventListener("click", wipeDividendsAll);
 
     // Crypto
-    $("crAdd").addEventListener("click", () => upsertCrypto({
-      coin: $("crCoin").value,
-      invest: $("crInvest").value,
-      qty: $("crQty").value,
-      price: $("crPrice").value
+    $("crAdd")?.addEventListener("click", () => upsertCrypto({
+      coin: $("crCoin")?.value,
+      invest: $("crInvest")?.value,
+      qty: $("crQty")?.value,
+      price: $("crPrice")?.value
     }));
-    $("crCancelEdit").addEventListener("click", clearCryptoForm);
-    $("btnCryptoWipe").addEventListener("click", wipeCryptoAll);
+    $("crCancelEdit")?.addEventListener("click", clearCryptoForm);
+    $("btnCryptoWipe")?.addEventListener("click", wipeCryptoAll);
 
     // P2P
-    $("p2Add").addEventListener("click", () => upsertP2P({
-      platform: $("p2Platform").value,
-      project: $("p2Project").value,
-      amount: $("p2Amount").value,
-      rate: $("p2Rate").value,
-      years: $("p2Years").value,
-      start: $("p2Start").value,
-      end: $("p2End").value
+    $("p2Add")?.addEventListener("click", () => upsertP2P({
+      platform: $("p2Platform")?.value,
+      project: $("p2Project")?.value,
+      amount: $("p2Amount")?.value,
+      rate: $("p2Rate")?.value,
+      years: $("p2Years")?.value,
+      start: $("p2Start")?.value,
+      end: $("p2End")?.value
     }));
-    $("p2CancelEdit").addEventListener("click", clearP2PForm);
-    $("btnP2PWipe").addEventListener("click", wipeP2PAll);
+    $("p2CancelEdit")?.addEventListener("click", clearP2PForm);
+    $("btnP2PWipe")?.addEventListener("click", wipeP2PAll);
 
     // Funds
-    $("fdAdd").addEventListener("click", () => upsertFund({
-      platform: $("fdPlatform").value,
-      amount: $("fdAmount").value,
-      rate: $("fdRate").value,
-      freq: $("fdFreq").value
+    $("fdAdd")?.addEventListener("click", () => upsertFund({
+      platform: $("fdPlatform")?.value,
+      amount: $("fdAmount")?.value,
+      rate: $("fdRate")?.value,
+      freq: $("fdFreq")?.value
     }));
-    $("fdCancelEdit").addEventListener("click", clearFundsForm);
-    $("btnFundsWipe").addEventListener("click", wipeFundsAll);
+    $("fdCancelEdit")?.addEventListener("click", clearFundsForm);
+    $("btnFundsWipe")?.addEventListener("click", wipeFundsAll);
   }
 
   // -----------------------
@@ -1122,13 +1102,20 @@
   // -----------------------
   function init() {
     const s = requireSession();
-    if (!s) return;
+    if (!s) retuACrn;
 
     if (!localStorage.getItem(STORAGE.data)) {
       setData(structuredClone(DEFAULT_DATA));
     }
 
     bindEvents();
+    // 🔄 quando outro módulo (ex: vendas.js) alterar dados, re-render imediato
+window.addEventListener("ras:data-updated", () => {
+  renderAll();
+  // mantém a secção atual (para não saltar)
+  showSection(readHash());
+});
+
     renderAll();
 
     const section = readHash();
