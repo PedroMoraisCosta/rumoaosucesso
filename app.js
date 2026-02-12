@@ -430,9 +430,10 @@
         <td class="text-end">${fmtEUR(profit)}</td>
         <td class="text-end">${fmtPct(pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
-        </td>
+          <button class="btn btn-sm btn-outline-primary me-1" data-act="rec" data-id="${x.id}" type="button">Reconciliar</button>
+<button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+<button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
+
       `;
       tbody.appendChild(tr);
     }
@@ -444,6 +445,10 @@
         if (act === "edit") {
           const data2 = getData();
           const row = data2.stocks.find(r => r.id === id);
+          if (act === "rec") {
+  openReconcile("stocks", id);
+}
+
           if (!row) return;
           stEditingId = id;
           if ($("stTicker")) $("stTicker").value = row.ticker;
@@ -678,9 +683,10 @@
         <td class="text-end">${fmtEUR(profit)}</td>
         <td class="text-end">${fmtPct(pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
-        </td>
+          <button class="btn btn-sm btn-outline-primary me-1" data-act="rec" data-id="${x.id}" type="button">Reconciliar</button>
+<button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+<button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
+
       `;
       tbody.appendChild(tr);
     }
@@ -699,6 +705,10 @@
           if ($("crQty")) $("crQty").value = row.qty;
           if ($("crPrice")) $("crPrice").value = row.price;
         }
+        if (act === "rec") {
+  openReconcile("crypto", id);
+}
+
         if (act === "del") {
           if (!confirmDanger("Apagar esta moeda?")) return;
           data2.crypto = data2.crypto.filter(r => r.id !== id);
@@ -1096,6 +1106,193 @@ window.RAS.refresh = function () {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
   }
+// =======================
+// Reconciliar (Modo Auditoria)
+// =======================
+let recState = { open: false, kind: null, id: null };
+
+function ensureReconcileBox(sectionId, boxId, title) {
+  const sec = document.getElementById(sectionId);
+  if (!sec) return null;
+
+  // tenta colocar dentro do primeiro .card-body, senão no topo da secção
+  const host = sec.querySelector(".card-body") || sec;
+
+  let box = document.getElementById(boxId);
+  if (!box) {
+    box = document.createElement("div");
+    box.id = boxId;
+    box.className = "mb-3 border rounded p-3 bg-white";
+    box.style.display = "none";
+    box.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">${title}</div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-rec-act="close">Fechar</button>
+      </div>
+      <div class="small text-secondary mt-1" id="${boxId}-hint">—</div>
+      <div class="row g-2 mt-2" id="${boxId}-fields"></div>
+      <div class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-sm btn-primary" data-rec-act="apply">Aplicar</button>
+        <button type="button" class="btn btn-sm btn-outline-danger" data-rec-act="reset0">Zerar Qty</button>
+      </div>
+      <div class="small text-secondary mt-2">
+        Nota: isto só ajusta o teu portefólio local (modo auditoria). Não mexe na corretora.
+      </div>
+    `;
+
+    host.prepend(box);
+
+    // eventos do próprio box
+    box.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-rec-act]");
+      if (!btn) return;
+      const act = btn.getAttribute("data-rec-act");
+      if (act === "close") closeReconcile();
+      if (act === "apply") applyReconcile();
+      if (act === "reset0") resetReconcileQty();
+    });
+  }
+
+  return box;
+}
+
+function openReconcile(kind, id) {
+  recState = { open: true, kind, id };
+
+  if (kind === "stocks") {
+    const box = ensureReconcileBox("sec-acoes", "reconcileStocksBox", "Reconciliar (Ações)");
+    if (!box) return;
+
+    const data = getData();
+    const row = data.stocks.find(x => x.id === id);
+    if (!row) return;
+
+    document.getElementById("reconcileStocksBox-hint").textContent =
+      `Ticker: ${row.ticker} (atual: qty=${row.qty}, avg=${row.avg}, cur=${row.cur})`;
+
+    document.getElementById("reconcileStocksBox-fields").innerHTML = `
+      <div class="col-12 col-md-4">
+        <label class="form-label small">Qty</label>
+        <input type="number" step="1" min="0" id="rec_qty" class="form-control" value="${safeNum(row.qty)}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label small">Preço médio (avg)</label>
+        <input type="number" step="0.000001" min="0" id="rec_avg" class="form-control" value="${safeNum(row.avg)}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label small">Preço atual (cur)</label>
+        <input type="number" step="0.000001" min="0" id="rec_cur" class="form-control" value="${safeNum(row.cur)}">
+      </div>
+    `;
+
+    box.style.display = "";
+    return;
+  }
+
+  if (kind === "crypto") {
+    const box = ensureReconcileBox("sec-cripto", "reconcileCryptoBox", "Reconciliar (Cripto)");
+    if (!box) return;
+
+    const data = getData();
+    const row = data.crypto.find(x => x.id === id);
+    if (!row) return;
+
+    document.getElementById("reconcileCryptoBox-hint").textContent =
+      `Moeda: ${row.coin} (atual: invest=${row.invest}, qty=${row.qty}, price=${row.price})`;
+
+    document.getElementById("reconcileCryptoBox-fields").innerHTML = `
+      <div class="col-12 col-md-4">
+        <label class="form-label small">€ Investido</label>
+        <input type="number" step="0.01" min="0" id="rec_invest" class="form-control" value="${safeNum(row.invest)}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label small">Qty</label>
+        <input type="number" step="0.00000001" min="0" id="rec_qty" class="form-control" value="${safeNum(row.qty)}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label small">Preço atual</label>
+        <input type="number" step="0.00000001" min="0" id="rec_price" class="form-control" value="${safeNum(row.price)}">
+      </div>
+    `;
+
+    box.style.display = "";
+    return;
+  }
+}
+
+function closeReconcile() {
+  recState = { open: false, kind: null, id: null };
+  const a = document.getElementById("reconcileStocksBox");
+  const c = document.getElementById("reconcileCryptoBox");
+  if (a) a.style.display = "none";
+  if (c) c.style.display = "none";
+}
+
+function resetReconcileQty() {
+  const qtyEl = document.getElementById("rec_qty");
+  if (qtyEl) qtyEl.value = "0";
+}
+
+function applyReconcile() {
+  if (!recState.open || !recState.kind || !recState.id) return;
+
+  const data = getData();
+
+  if (recState.kind === "stocks") {
+    const idx = data.stocks.findIndex(x => x.id === recState.id);
+    if (idx === -1) return;
+
+    const qty = safeNum(document.getElementById("rec_qty")?.value);
+    const avg = safeNum(document.getElementById("rec_avg")?.value);
+    const cur = safeNum(document.getElementById("rec_cur")?.value);
+
+    // regras mínimas
+    if (qty < 0) return alert("Qty inválida.");
+    if (qty > 0 && (avg <= 0 || cur <= 0)) return alert("Avg/Cur têm de ser > 0 quando qty > 0.");
+
+    data.stocks[idx].qty = qty;
+    if (qty === 0) {
+      // opcional: manter avg/cur como estão
+    } else {
+      data.stocks[idx].avg = avg;
+      data.stocks[idx].cur = cur;
+    }
+
+    setData(data);
+    renderStocks();
+    renderDividends();
+    renderPatrimonio();
+    closeReconcile();
+    return;
+  }
+
+  if (recState.kind === "crypto") {
+    const idx = data.crypto.findIndex(x => x.id === recState.id);
+    if (idx === -1) return;
+
+    const invest = safeNum(document.getElementById("rec_invest")?.value);
+    const qty = safeNum(document.getElementById("rec_qty")?.value);
+    const price = safeNum(document.getElementById("rec_price")?.value);
+
+    if (invest < 0) return alert("Invest inválido.");
+    if (qty < 0) return alert("Qty inválida.");
+    if (qty > 0 && price <= 0) return alert("Preço tem de ser > 0 quando qty > 0.");
+
+    data.crypto[idx].invest = invest;
+    data.crypto[idx].qty = qty;
+    if (qty === 0) {
+      // opcional: manter price
+    } else {
+      data.crypto[idx].price = price;
+    }
+
+    setData(data);
+    renderCrypto();
+    renderPatrimonio();
+    closeReconcile();
+    return;
+  }
+}
 
   // -----------------------
   // Init
