@@ -4,7 +4,9 @@
 
   const STORAGE = {
     session: "ras_session_v1",
-    data: "ras_data_v1"
+    data: "ras_data_v1",
+    history: "ras_history_v1",
+    ledger: "ras_ledger_v1" // reservado (para futuro)
   };
 
   const DEFAULT_DATA = {
@@ -15,6 +17,13 @@
     crypto: [],
     p2p: [],
     funds: []
+  };
+
+  const DEFAULT_HISTORY = {
+    meta: { lastUpdated: null },
+    months: {
+      // "YYYY-MM": { createdAt, snapshot: {...}, notes }
+    }
   };
 
   // -----------------------
@@ -41,9 +50,29 @@
     return window.confirm(msg);
   }
 
+  function escapeHtml(str) {
+    return String(str || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function cryptoRandomId() {
+    return Math.random().toString(16).slice(2) + Date.now().toString(16);
+  }
+
+  // -----------------------
+  // Data storage
+  // -----------------------
   function setData(data) {
+    data.meta = data.meta || {};
     data.meta.lastUpdated = nowISO();
     localStorage.setItem(STORAGE.data, JSON.stringify(data));
+
+    // 🔔 notifica UI + outros módulos (vendas.js)
+    window.dispatchEvent(new Event("ras:data-updated"));
   }
 
   function getData() {
@@ -57,6 +86,274 @@
     }
   }
 
+  // -----------------------
+  // History storage (ÚNICO)
+  // -----------------------
+  function isValidMonthKey(m) {
+    return typeof m === "string" && /^\d{4}-\d{2}$/.test(m);
+  }
+
+  function monthKeyFromDate(d = new Date()) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${yyyy}-${mm}`;
+  }
+
+  function getHistory() {
+    try {
+      const raw = localStorage.getItem(STORAGE.history);
+      if (!raw) return structuredClone(DEFAULT_HISTORY);
+      const parsed = JSON.parse(raw);
+      const merged = { ...structuredClone(DEFAULT_HISTORY), ...parsed };
+      merged.meta = merged.meta || {};
+      merged.months = parsed?.months && typeof parsed.months === "object" ? parsed.months : {};
+      return merged;
+    } catch {
+      return structuredClone(DEFAULT_HISTORY);
+    }
+  }
+
+  function setHistory(hist) {
+    hist.meta = hist.meta || {};
+    hist.months = hist.months || {};
+    hist.meta.lastUpdated = nowISO();
+    localStorage.setItem(STORAGE.history, JSON.stringify(hist));
+
+    // 🔔 atualiza imediatamente
+    renderHistorico();
+  }
+
+  // Snapshot mensal: guardamos investido e atual
+  function buildSnapshotFromData(data) {
+    const st = calcStocks(data);
+    const cr = calcCrypto(data);
+    const p2 = calcP2P(data);
+    const fd = calcFunds(data);
+
+    const banco = safeNum(data.patrimonio?.bancoPessoal);
+
+    const acoesAtual = st.current;
+    const criptoAtual = cr.current;
+    const p2pFinal = p2.finals;
+    const fundosTotal = fd.total;
+
+    const patrimonioTotal = banco + acoesAtual + criptoAtual + p2pFinal + fundosTotal;
+
+    return {
+      banco,
+      acoes: { invested: st.invested, current: st.current, profit: st.profit, pct: st.pct },
+      cripto: { invested: cr.invested, current: cr.current, profit: cr.profit, pct: cr.pct },
+      p2p: { invested: p2.invested, finals: p2.finals, profit: p2.profit, avgPct: p2.avgPct, profitPerYear: p2.profitPerYear },
+      fundos: { total: fd.total, yearProfit: fd.yearProfit, avgRate: fd.avgRate },
+      totals: { acoesAtual, criptoAtual, p2pFinal, fundosTotal, patrimonioTotal }
+    };
+  }
+
+  function historySnapshot(monthKey) {
+    const m = isValidMonthKey(monthKey) ? monthKey : monthKeyFromDate(new Date());
+    const hist = getHistory();
+    const data = getData();
+
+    hist.months[m] = {
+      createdAt: nowISO(),
+      snapshot: buildSnapshotFromData(data),
+      notes: ""
+    };
+
+    setHistory(hist);
+    alert(`Histórico guardado para ${m} ✅`);
+  }
+
+  function historyDeleteMonth(monthKey) {
+    const hist = getHistory();
+    if (hist.months && hist.months[monthKey]) {
+      delete hist.months[monthKey];
+      setHistory(hist);
+    }
+  }
+
+  function historyClearAll() {
+    if (!confirmDanger("Tens a certeza que queres apagar TODO o histórico?")) return;
+    setHistory(structuredClone(DEFAULT_HISTORY));
+    alert("Histórico apagado ✅");
+  }
+
+  function historyExportJSON() {
+    const hist = getHistory();
+    const blob = new Blob([JSON.stringify(hist, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rumo-ao-sucesso-historico-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // -----------------------
+  // Chart.js — Histórico (FUNÇÃO SEPARADA E SEGURA)
+  // -----------------------
+  function renderHistChart(hist) {
+    try {
+      const canvas = $("histChart");
+      if (!canvas) return;
+
+      if (!window.Chart) {
+        // Chart.js não carregou (script em falta ou ordem errada)
+        return;
+      }
+
+      const monthsObj = hist?.months || {};
+      const keysAll = Object.keys(monthsObj)
+        .filter(k => isValidMonthKey(k))
+        .sort((a, b) => a.localeCompare(b)); // crescente
+
+      const labels = [];
+      const values = [];
+
+      for (const k of keysAll) {
+        const snap = monthsObj[k]?.snapshot;
+        const val = snap?.totals?.patrimonioTotal ?? 0;
+        labels.push(k);
+        values.push(Number(val || 0));
+      }
+
+      // se não há dados, limpa chart (ou cria vazio)
+      if (!labels.length) {
+        if (window.__RAS_HIST_CHART__) {
+          window.__RAS_HIST_CHART__.data.labels = [];
+          window.__RAS_HIST_CHART__.data.datasets[0].data = [];
+          window.__RAS_HIST_CHART__.update();
+        }
+        return;
+      }
+
+      if (!window.__RAS_HIST_CHART__) {
+        window.__RAS_HIST_CHART__ = new Chart(canvas, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Património total (€)",
+              data: values,
+              tension: 0.25
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: {
+              y: { ticks: { callback: (v) => `${Number(v).toLocaleString("pt-PT")} €` } }
+            }
+          }
+        });
+      } else {
+        const ch = window.__RAS_HIST_CHART__;
+        ch.data.labels = labels;
+        ch.data.datasets[0].data = values;
+        ch.update();
+      }
+    } catch (e) {
+      console.warn("Hist chart error:", e);
+    }
+  }
+
+  function renderHistorico() {
+    const tbody = $("histTable");
+    if (!tbody) return;
+
+    const hist = getHistory();
+    const keys = Object.keys(hist.months || {})
+      .filter(isValidMonthKey)
+      .sort((a, b) => b.localeCompare(a));
+
+    if (!keys.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-secondary small">Sem histórico guardado.</td></tr>`;
+      renderHistChart(hist);
+      return;
+    }
+
+    tbody.innerHTML = keys.map((m) => {
+      const s = hist.months[m]?.snapshot;
+      const t = s?.totals || {};
+
+      return `
+        <tr>
+          <td class="fw-semibold">${escapeHtml(m)}</td>
+          <td class="text-end">${fmtEUR(s?.banco || 0)}</td>
+          <td class="text-end">${fmtEUR(t?.acoesAtual || 0)}</td>
+          <td class="text-end">${fmtEUR(t?.criptoAtual || 0)}</td>
+          <td class="text-end">${fmtEUR(t?.p2pFinal || 0)}</td>
+          <td class="text-end">${fmtEUR(t?.fundosTotal || 0)}</td>
+          <td class="text-end fw-semibold">${fmtEUR(t?.patrimonioTotal || 0)}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-danger" data-act="hist-del" data-month="${escapeHtml(m)}" type="button">Apagar</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    // Delegação (não duplica listeners)
+    if (!tbody.__bound) {
+      tbody.__bound = true;
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act='hist-del']");
+        if (!btn) return;
+        const m = btn.getAttribute("data-month");
+        if (!m) return;
+        if (!confirmDanger(`Apagar histórico de ${m}?`)) return;
+        historyDeleteMonth(m);
+      });
+    }
+
+    // chart sempre depois de desenhar tabela
+    renderHistChart(hist);
+  }
+
+  function bindHistoryUI() {
+    if (window.__RAS_HISTORY_UI_BOUND__) return;
+    window.__RAS_HISTORY_UI_BOUND__ = true;
+
+    const inpMonth = $("histMonth");
+    const btnNow = $("btnHistSnapshotNow");
+    const btnMonth = $("btnHistSnapshotMonth");
+    const btnExport = $("btnHistExport");
+    const btnWipe = $("btnHistWipe");
+
+    if (btnNow) btnNow.addEventListener("click", () => historySnapshot(monthKeyFromDate(new Date())));
+
+    if (btnMonth) btnMonth.addEventListener("click", () => {
+      const m = inpMonth?.value || "";
+      if (!isValidMonthKey(m)) return alert("Escolhe um mês válido (AAAA-MM).");
+      historySnapshot(m);
+    });
+
+    if (btnExport) btnExport.addEventListener("click", historyExportJSON);
+    if (btnWipe) btnWipe.addEventListener("click", historyClearAll);
+
+    if (inpMonth && !inpMonth.__bound) {
+      inpMonth.__bound = true;
+      inpMonth.addEventListener("change", () => renderHistorico());
+    }
+  }
+
+  // “Ledger” (futuro)
+  function ledgerAppend(entry) {
+    try {
+      const raw = localStorage.getItem(STORAGE.ledger);
+      const arr = raw ? JSON.parse(raw) : [];
+      arr.push({ ...entry, createdAt: nowISO() });
+      localStorage.setItem(STORAGE.ledger, JSON.stringify(arr));
+    } catch {
+      // ignora
+    }
+  }
+
+  // -----------------------
+  // Session
+  // -----------------------
   function getSession() {
     try {
       const raw = localStorage.getItem(STORAGE.session);
@@ -75,6 +372,25 @@
     return s;
   }
 
+  function renderSession() {
+    const s = requireSession();
+    if (!s) return;
+
+    const badge = $("badgeMode");
+    const email = $("sessionEmail");
+    const when = $("sessionWhen");
+
+    if (badge) badge.textContent = s.mode === "demo" ? "Modo: demo" : "Modo: local";
+    if (email) email.textContent = s.email || "—";
+    if (when) when.textContent = s.createdAt ? new Date(s.createdAt).toLocaleString("pt-PT") : "—";
+  }
+
+  function logout() {
+    if (!confirmDanger("Sair da sessão?")) return;
+    localStorage.removeItem(STORAGE.session);
+    window.location.href = "./index.html";
+  }
+
   // -----------------------
   // Navigation / Sections
   // -----------------------
@@ -86,7 +402,8 @@
     fundos: { title: "Fundos Parados", el: "sec-fundos" },
     vendas: { title: "Vendas / Realizações", el: "sec-vendas" },
     graficos: { title: "Gráficos", el: "sec-graficos" },
-    ia: { title: "Resumo por IA", el: "sec-ia" }
+    ia: { title: "Resumo por IA", el: "sec-ia" },
+    historico: { title: "Histórico", el: "sec-historico" }
   };
 
   function setActiveMenu(section) {
@@ -98,21 +415,51 @@
 
   function showSection(section) {
     const key = SECTION_MAP[section] ? section : "patrimonio";
+  if (window.location.hash !== `#${key}`) {
+   window.location.hash = `#${key}`;
+}
+
+    // esconder todas
     Object.values(SECTION_MAP).forEach(v => {
       const el = $(v.el);
       if (el) el.style.display = "none";
     });
+
+    // mostrar a escolhida
     const target = $(SECTION_MAP[key].el);
     if (target) target.style.display = "block";
+
     setActiveMenu(key);
+
     const t = $("pageTitle");
     if (t) t.textContent = SECTION_MAP[key].title;
+
+    // render por secção (evita “secção vazia” quando algo não atualiza)
+    try {
+      if (key === "p2p" && typeof renderP2P === "function") renderP2P();
+      if (key === "fundos" && typeof renderFunds === "function") renderFunds();
+      if (key === "historico") renderHistorico();
+
+      if (key === "vendas") {
+        if (window.VENDAS && typeof window.VENDAS.render === "function") window.VENDAS.render();
+      }
+    } catch (e) {
+      console.warn("Erro ao renderizar secção:", key, e);
+    }
   }
 
   function readHash() {
-    const h = (window.location.hash || "").replace("#", "").trim();
-    return h || "patrimonio";
-  }
+  let h = (window.location.hash || "").replace("#", "").trim();
+
+  // aceita hashes do tipo #sec-cripto, #sec-p2p, etc.
+  if (h.startsWith("sec-")) h = h.replace("sec-", "");
+
+  // compatibilidade extra (se algum link estiver #crypto)
+  if (h === "crypto") h = "cripto";
+
+  return h || "patrimonio";
+}
+
 
   // -----------------------
   // Global actions (export/import/demo/wipe)
@@ -142,7 +489,6 @@
         const obj = JSON.parse(text);
         const merged = { ...structuredClone(DEFAULT_DATA), ...obj };
 
-        // Migração simples: se vier bancoCodeconnect antigo, passa para bancoPessoal
         if (merged?.patrimonio?.bancoCodeconnect != null && merged?.patrimonio?.bancoPessoal == null) {
           merged.patrimonio.bancoPessoal = merged.patrimonio.bancoCodeconnect;
           delete merged.patrimonio.bancoCodeconnect;
@@ -165,7 +511,6 @@
       const obj = await res.json();
       const merged = { ...structuredClone(DEFAULT_DATA), ...obj };
 
-      // Migração demo (se tiver bancoCodeconnect)
       if (merged?.patrimonio?.bancoCodeconnect != null && merged?.patrimonio?.bancoPessoal == null) {
         merged.patrimonio.bancoPessoal = merged.patrimonio.bancoCodeconnect;
         delete merged.patrimonio.bancoCodeconnect;
@@ -227,7 +572,6 @@
     const finalValue = invested + profit;
     const pct = invested > 0 ? (profit / invested) * 100 : 0;
 
-    // lucro por ano (para o total anual)
     const profitPerYear = invested * (rate / 100);
 
     return { years, finalValue, profit, pct, profitPerYear };
@@ -243,7 +587,6 @@
         ? data.p2p.reduce((a, x) => a + calcP2PRow(x).pct, 0) / data.p2p.length
         : 0;
 
-    // total anual estimado (simples)
     const profitPerYear = data.p2p.reduce((a, x) => a + calcP2PRow(x).profitPerYear, 0);
 
     return { invested, finals, profit, avgPct, profitPerYear };
@@ -280,7 +623,6 @@
     return { total, yearProfit, monthProfit, dayProfit, avgRate };
   }
 
-  // Dividendos — total anual/mensal/diário
   function calcDividendsTotal(data) {
     let year = 0;
     for (const d of data.dividends) {
@@ -294,7 +636,7 @@
   }
 
   // -----------------------
-  // Patrimonio (auto + ganhos recorrentes)
+  // Patrimonio
   // -----------------------
   function renderPatrimonio() {
     const data = getData();
@@ -318,28 +660,23 @@
     const banco = safeNum(data.patrimonio?.bancoPessoal);
     const patrimonioTotal = ativosAtuais + fd.total + banco;
 
-    // total anual “recorrente” (estimativa)
     const totalRecorrenteAno = dv.year + p2.profitPerYear + fd.yearProfit;
     const totalRecorrenteMes = totalRecorrenteAno / 12;
     const totalRecorrenteDia = totalRecorrenteAno / 365.25;
 
-    // KPIs principais
     if ($("plTotalInvestido")) $("plTotalInvestido").textContent = fmtEUR(totalInvestidoAtivos);
     if ($("plAtivosAtuais")) $("plAtivosAtuais").textContent = fmtEUR(ativosAtuais);
     if ($("plLucroTotal")) $("plLucroTotal").textContent = fmtEUR(lucroTotal);
     if ($("plPctLucro")) $("plPctLucro").textContent = fmtPct(pctLucro);
     if ($("plPatrimonioTotal")) $("plPatrimonioTotal").textContent = fmtEUR(patrimonioTotal);
 
-    // Banco pessoal
     const inpB = $("inpBancoPessoal");
     if (inpB) inpB.value = String(banco || 0);
 
-    // Recorrentes (totais)
     if ($("plRecAno")) $("plRecAno").textContent = fmtEUR(totalRecorrenteAno);
     if ($("plRecMes")) $("plRecMes").textContent = fmtEUR(totalRecorrenteMes);
     if ($("plRecDia")) $("plRecDia").textContent = fmtEUR(totalRecorrenteDia);
 
-    // Breakdown
     if ($("plDvAno")) $("plDvAno").textContent = fmtEUR(dv.year);
     if ($("plDvMes")) $("plDvMes").textContent = fmtEUR(dv.month);
     if ($("plDvDia")) $("plDvDia").textContent = fmtEUR(dv.day);
@@ -358,7 +695,6 @@
     data.patrimonio = data.patrimonio || {};
     data.patrimonio.bancoPessoal = safeNum($("inpBancoPessoal")?.value);
     setData(data);
-    renderPatrimonio();
   }
 
   // -----------------------
@@ -387,9 +723,6 @@
     }
 
     setData(data);
-    renderStocks();
-    renderDividends();
-    renderPatrimonio();
     clearStockForm();
   }
 
@@ -430,25 +763,24 @@
         <td class="text-end">${fmtEUR(profit)}</td>
         <td class="text-end">${fmtPct(pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary me-1" data-act="rec" data-id="${x.id}" type="button">Reconciliar</button>
-<button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
-<button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
-
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
 
-    tbody.querySelectorAll("button").forEach(btn => {
-      btn.addEventListener("click", () => {
+    if (!tbody.__bound) {
+      tbody.__bound = true;
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
         const id = btn.getAttribute("data-id");
         const act = btn.getAttribute("data-act");
+
         if (act === "edit") {
           const data2 = getData();
           const row = data2.stocks.find(r => r.id === id);
-          if (act === "rec") {
-  openReconcile("stocks", id);
-}
-
           if (!row) return;
           stEditingId = id;
           if ($("stTicker")) $("stTicker").value = row.ticker;
@@ -456,6 +788,7 @@
           if ($("stAvg")) $("stAvg").value = row.avg;
           if ($("stCur")) $("stCur").value = row.cur;
         }
+
         if (act === "del") {
           if (!confirmDanger("Apagar esta ação?")) return;
           const data2 = getData();
@@ -463,12 +796,9 @@
           data2.stocks = data2.stocks.filter(r => r.id !== id);
           if (removedTicker) data2.dividends = data2.dividends.filter(d => d.ticker !== removedTicker);
           setData(data2);
-          renderStocks();
-          renderDividends();
-          renderPatrimonio();
         }
       });
-    });
+    }
 
     fillDividendTickerSelect();
   }
@@ -479,9 +809,6 @@
     data.stocks = [];
     data.dividends = [];
     setData(data);
-    renderStocks();
-    renderDividends();
-    renderPatrimonio();
     clearStockForm();
     clearDividendForm();
   }
@@ -534,8 +861,6 @@
     }
 
     setData(data);
-    renderDividends();
-    renderPatrimonio();
     clearDividendForm();
   }
 
@@ -580,11 +905,15 @@
       tbody.appendChild(tr);
     }
 
-    tbody.querySelectorAll("button").forEach(btn => {
-      btn.addEventListener("click", () => {
+    if (!tbody.__bound) {
+      tbody.__bound = true;
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
         const id = btn.getAttribute("data-id");
         const act = btn.getAttribute("data-act");
         const data2 = getData();
+
         if (act === "edit") {
           const row = data2.dividends.find(r => r.id === id);
           if (!row) return;
@@ -594,15 +923,14 @@
           if ($("dvYearPerShare")) $("dvYearPerShare").value = row.yearPerShare;
           if ($("dvPay")) $("dvPay").value = String(row.payN);
         }
+
         if (act === "del") {
           if (!confirmDanger("Apagar este dividendo?")) return;
           data2.dividends = data2.dividends.filter(r => r.id !== id);
           setData(data2);
-          renderDividends();
-          renderPatrimonio();
         }
       });
-    });
+    }
 
     updateDividendQtyAuto();
   }
@@ -612,8 +940,6 @@
     const data = getData();
     data.dividends = [];
     setData(data);
-    renderDividends();
-    renderPatrimonio();
   }
 
   // -----------------------
@@ -642,8 +968,6 @@
     }
 
     setData(data);
-    renderCrypto();
-    renderPatrimonio();
     clearCryptoForm();
   }
 
@@ -683,19 +1007,22 @@
         <td class="text-end">${fmtEUR(profit)}</td>
         <td class="text-end">${fmtPct(pct)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary me-1" data-act="rec" data-id="${x.id}" type="button">Reconciliar</button>
-<button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
-<button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
-
+          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
 
-    tbody.querySelectorAll("button").forEach(btn => {
-      btn.addEventListener("click", () => {
+    if (!tbody.__bound) {
+      tbody.__bound = true;
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
         const id = btn.getAttribute("data-id");
         const act = btn.getAttribute("data-act");
         const data2 = getData();
+
         if (act === "edit") {
           const row = data2.crypto.find(r => r.id === id);
           if (!row) return;
@@ -705,19 +1032,14 @@
           if ($("crQty")) $("crQty").value = row.qty;
           if ($("crPrice")) $("crPrice").value = row.price;
         }
-        if (act === "rec") {
-  openReconcile("crypto", id);
-}
 
         if (act === "del") {
           if (!confirmDanger("Apagar esta moeda?")) return;
           data2.crypto = data2.crypto.filter(r => r.id !== id);
           setData(data2);
-          renderCrypto();
-          renderPatrimonio();
         }
       });
-    });
+    }
   }
 
   function wipeCryptoAll() {
@@ -725,8 +1047,6 @@
     const data = getData();
     data.crypto = [];
     setData(data);
-    renderCrypto();
-    renderPatrimonio();
     clearCryptoForm();
   }
 
@@ -750,19 +1070,17 @@
     if (amount <= 0) return alert("€ Investido tem de ser > 0.");
     if (rate <= 0) return alert("% anual tem de ser > 0.");
 
-    const idPayload = { platform, project, amount, rate, years, start, end };
+    const payload = { platform, project, amount, rate, years, start, end };
 
     if (p2EditingId) {
       const idx = data.p2p.findIndex(x => x.id === p2EditingId);
-      if (idx >= 0) data.p2p[idx] = { ...data.p2p[idx], ...idPayload };
+      if (idx >= 0) data.p2p[idx] = { ...data.p2p[idx], ...payload };
       p2EditingId = null;
     } else {
-      data.p2p.push({ id: cryptoRandomId(), ...idPayload });
+      data.p2p.push({ id: cryptoRandomId(), ...payload });
     }
 
     setData(data);
-    renderP2P();
-    renderPatrimonio();
     clearP2PForm();
   }
 
@@ -810,11 +1128,15 @@
       tbody.appendChild(tr);
     }
 
-    tbody.querySelectorAll("button").forEach(btn => {
-      btn.addEventListener("click", () => {
+    if (!tbody.__bound) {
+      tbody.__bound = true;
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
         const id = btn.getAttribute("data-id");
         const act = btn.getAttribute("data-act");
         const data2 = getData();
+
         if (act === "edit") {
           const row = data2.p2p.find(r => r.id === id);
           if (!row) return;
@@ -827,15 +1149,14 @@
           if ($("p2Start")) $("p2Start").value = row.start || "";
           if ($("p2End")) $("p2End").value = row.end || "";
         }
+
         if (act === "del") {
           if (!confirmDanger("Apagar este projeto P2P?")) return;
           data2.p2p = data2.p2p.filter(r => r.id !== id);
           setData(data2);
-          renderP2P();
-          renderPatrimonio();
         }
       });
-    });
+    }
   }
 
   function wipeP2PAll() {
@@ -843,13 +1164,11 @@
     const data = getData();
     data.p2p = [];
     setData(data);
-    renderP2P();
-    renderPatrimonio();
     clearP2PForm();
   }
 
   // -----------------------
-  // Funds Parados
+  // Funds
   // -----------------------
   let fdEditingId = null;
 
@@ -875,8 +1194,6 @@
     }
 
     setData(data);
-    renderFunds();
-    renderPatrimonio();
     clearFundsForm();
   }
 
@@ -903,8 +1220,6 @@
     for (const x of data.funds) {
       const annualRate = annualRateFromFunds(x.rate, x.freq);
       const yearProfit = safeNum(x.amount) * (annualRate / 100);
-      const monthProfit = yearProfit / 12;
-      const dayProfit = yearProfit / 365.25;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -912,8 +1227,6 @@
         <td class="text-end">${fmtEUR(x.amount)}</td>
         <td class="text-end">${fmtPct(annualRate)}</td>
         <td class="text-end">${fmtEUR(yearProfit)}</td>
-        <td class="text-end">${fmtEUR(monthProfit)}</td>
-        <td class="text-end">${fmtEUR(dayProfit)}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
           <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
@@ -922,25 +1235,15 @@
       tbody.appendChild(tr);
     }
 
-    // Atualiza cabeçalho se ainda estiver “curto”
-    const theadRow = $("fdTable")?.closest("table")?.querySelector("thead tr");
-    if (theadRow && theadRow.children.length === 5) {
-      theadRow.innerHTML = `
-        <th>Plataforma</th>
-        <th class="text-end">€ Valor</th>
-        <th class="text-end">Taxa anual (%)</th>
-        <th class="text-end">Juro/ano (€)</th>
-        <th class="text-end">/mês</th>
-        <th class="text-end">/dia</th>
-        <th class="text-end">Ações</th>
-      `;
-    }
-
-    tbody.querySelectorAll("button").forEach(btn => {
-      btn.addEventListener("click", () => {
+    if (!tbody.__bound) {
+      tbody.__bound = true;
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
         const id = btn.getAttribute("data-id");
         const act = btn.getAttribute("data-act");
         const data2 = getData();
+
         if (act === "edit") {
           const row = data2.funds.find(r => r.id === id);
           if (!row) return;
@@ -950,15 +1253,14 @@
           if ($("fdRate")) $("fdRate").value = row.rate;
           if ($("fdFreq")) $("fdFreq").value = row.freq || "annual";
         }
+
         if (act === "del") {
           if (!confirmDanger("Apagar este fundo parado?")) return;
           data2.funds = data2.funds.filter(r => r.id !== id);
           setData(data2);
-          renderFunds();
-          renderPatrimonio();
         }
       });
-    });
+    }
   }
 
   function wipeFundsAll() {
@@ -966,31 +1268,7 @@
     const data = getData();
     data.funds = [];
     setData(data);
-    renderFunds();
-    renderPatrimonio();
     clearFundsForm();
-  }
-
-  // -----------------------
-  // Session / Logout
-  // -----------------------
-  function renderSession() {
-    const s = requireSession();
-    if (!s) return;
-
-    const badge = $("badgeMode");
-    const email = $("sessionEmail");
-    const when = $("sessionWhen");
-
-    if (badge) badge.textContent = s.mode === "demo" ? "Modo: demo" : "Modo: local";
-    if (email) email.textContent = s.email || "—";
-    if (when) when.textContent = s.createdAt ? new Date(s.createdAt).toLocaleString("pt-PT") : "—";
-  }
-
-  function logout() {
-    if (!confirmDanger("Sair da sessão?")) return;
-    localStorage.removeItem(STORAGE.session);
-    window.location.href = "./index.html";
   }
 
   // -----------------------
@@ -1004,29 +1282,24 @@
     renderP2P();
     renderFunds();
     renderPatrimonio();
+    renderHistorico();
   }
-// ✅ API global para outros módulos (ex: vendas.js) forçarem refresh imediato
-window.RAS = window.RAS || {};
-window.RAS.refresh = function () {
-  renderAll();
-  showSection(readHash());
-};
 
   // -----------------------
   // Events
   // -----------------------
   function bindEvents() {
-    window.addEventListener("hashchange", () => {
-      const s = readHash();
-      showSection(s);
-    });
+    window.addEventListener("hashchange", () => showSection(readHash()));
 
-    document.querySelectorAll("#menuList a").forEach(a => {
-      a.addEventListener("click", () => {
-        const s = a.getAttribute("data-section");
-        showSection(s);
-      });
-    });
+   document.querySelectorAll("#menuList a").forEach(a => {
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    const s = a.getAttribute("data-section");
+    if (!s) return;
+    window.location.hash = `#${s}`; // isto chama hashchange e abre a secção certa
+  });
+});
+
 
     $("btnExportJson")?.addEventListener("click", exportJSON);
     $("btnImportJson")?.addEventListener("click", importJSON);
@@ -1034,7 +1307,6 @@ window.RAS.refresh = function () {
     $("btnWipeAll")?.addEventListener("click", wipeAllData);
     $("btnLogout")?.addEventListener("click", logout);
 
-    // Banco pessoal
     $("btnSaveBancoPessoal")?.addEventListener("click", saveBancoPessoal);
 
     // Stocks
@@ -1089,234 +1361,51 @@ window.RAS.refresh = function () {
     }));
     $("fdCancelEdit")?.addEventListener("click", clearFundsForm);
     $("btnFundsWipe")?.addEventListener("click", wipeFundsAll);
-  }
 
-  // -----------------------
-  // Utilities
-  // -----------------------
-  function cryptoRandomId() {
-    return Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
-
-  function escapeHtml(str) {
-    return String(str || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-// =======================
-// Reconciliar (Modo Auditoria)
-// =======================
-let recState = { open: false, kind: null, id: null };
-
-function ensureReconcileBox(sectionId, boxId, title) {
-  const sec = document.getElementById(sectionId);
-  if (!sec) return null;
-
-  // tenta colocar dentro do primeiro .card-body, senão no topo da secção
-  const host = sec.querySelector(".card-body") || sec;
-
-  let box = document.getElementById(boxId);
-  if (!box) {
-    box = document.createElement("div");
-    box.id = boxId;
-    box.className = "mb-3 border rounded p-3 bg-white";
-    box.style.display = "none";
-    box.innerHTML = `
-      <div class="d-flex justify-content-between align-items-center">
-        <div class="fw-semibold">${title}</div>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-rec-act="close">Fechar</button>
-      </div>
-      <div class="small text-secondary mt-1" id="${boxId}-hint">—</div>
-      <div class="row g-2 mt-2" id="${boxId}-fields"></div>
-      <div class="d-flex gap-2 mt-3">
-        <button type="button" class="btn btn-sm btn-primary" data-rec-act="apply">Aplicar</button>
-        <button type="button" class="btn btn-sm btn-outline-danger" data-rec-act="reset0">Zerar Qty</button>
-      </div>
-      <div class="small text-secondary mt-2">
-        Nota: isto só ajusta o teu portefólio local (modo auditoria). Não mexe na corretora.
-      </div>
-    `;
-
-    host.prepend(box);
-
-    // eventos do próprio box
-    box.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-rec-act]");
-      if (!btn) return;
-      const act = btn.getAttribute("data-rec-act");
-      if (act === "close") closeReconcile();
-      if (act === "apply") applyReconcile();
-      if (act === "reset0") resetReconcileQty();
+    // 🔄 re-render quando dados mudam
+    window.addEventListener("ras:data-updated", () => {
+      renderAll();
+      showSection(readHash());
     });
   }
 
-  return box;
-}
-
-function openReconcile(kind, id) {
-  recState = { open: true, kind, id };
-
-  if (kind === "stocks") {
-    const box = ensureReconcileBox("sec-acoes", "reconcileStocksBox", "Reconciliar (Ações)");
-    if (!box) return;
-
-    const data = getData();
-    const row = data.stocks.find(x => x.id === id);
-    if (!row) return;
-
-    document.getElementById("reconcileStocksBox-hint").textContent =
-      `Ticker: ${row.ticker} (atual: qty=${row.qty}, avg=${row.avg}, cur=${row.cur})`;
-
-    document.getElementById("reconcileStocksBox-fields").innerHTML = `
-      <div class="col-12 col-md-4">
-        <label class="form-label small">Qty</label>
-        <input type="number" step="1" min="0" id="rec_qty" class="form-control" value="${safeNum(row.qty)}">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label small">Preço médio (avg)</label>
-        <input type="number" step="0.000001" min="0" id="rec_avg" class="form-control" value="${safeNum(row.avg)}">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label small">Preço atual (cur)</label>
-        <input type="number" step="0.000001" min="0" id="rec_cur" class="form-control" value="${safeNum(row.cur)}">
-      </div>
-    `;
-
-    box.style.display = "";
-    return;
-  }
-
-  if (kind === "crypto") {
-    const box = ensureReconcileBox("sec-cripto", "reconcileCryptoBox", "Reconciliar (Cripto)");
-    if (!box) return;
-
-    const data = getData();
-    const row = data.crypto.find(x => x.id === id);
-    if (!row) return;
-
-    document.getElementById("reconcileCryptoBox-hint").textContent =
-      `Moeda: ${row.coin} (atual: invest=${row.invest}, qty=${row.qty}, price=${row.price})`;
-
-    document.getElementById("reconcileCryptoBox-fields").innerHTML = `
-      <div class="col-12 col-md-4">
-        <label class="form-label small">€ Investido</label>
-        <input type="number" step="0.01" min="0" id="rec_invest" class="form-control" value="${safeNum(row.invest)}">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label small">Qty</label>
-        <input type="number" step="0.00000001" min="0" id="rec_qty" class="form-control" value="${safeNum(row.qty)}">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label small">Preço atual</label>
-        <input type="number" step="0.00000001" min="0" id="rec_price" class="form-control" value="${safeNum(row.price)}">
-      </div>
-    `;
-
-    box.style.display = "";
-    return;
-  }
-}
-
-function closeReconcile() {
-  recState = { open: false, kind: null, id: null };
-  const a = document.getElementById("reconcileStocksBox");
-  const c = document.getElementById("reconcileCryptoBox");
-  if (a) a.style.display = "none";
-  if (c) c.style.display = "none";
-}
-
-function resetReconcileQty() {
-  const qtyEl = document.getElementById("rec_qty");
-  if (qtyEl) qtyEl.value = "0";
-}
-
-function applyReconcile() {
-  if (!recState.open || !recState.kind || !recState.id) return;
-
-  const data = getData();
-
-  if (recState.kind === "stocks") {
-    const idx = data.stocks.findIndex(x => x.id === recState.id);
-    if (idx === -1) return;
-
-    const qty = safeNum(document.getElementById("rec_qty")?.value);
-    const avg = safeNum(document.getElementById("rec_avg")?.value);
-    const cur = safeNum(document.getElementById("rec_cur")?.value);
-
-    // regras mínimas
-    if (qty < 0) return alert("Qty inválida.");
-    if (qty > 0 && (avg <= 0 || cur <= 0)) return alert("Avg/Cur têm de ser > 0 quando qty > 0.");
-
-    data.stocks[idx].qty = qty;
-    if (qty === 0) {
-      // opcional: manter avg/cur como estão
-    } else {
-      data.stocks[idx].avg = avg;
-      data.stocks[idx].cur = cur;
-    }
-
-    setData(data);
-    renderStocks();
-    renderDividends();
-    renderPatrimonio();
-    closeReconcile();
-    return;
-  }
-
-  if (recState.kind === "crypto") {
-    const idx = data.crypto.findIndex(x => x.id === recState.id);
-    if (idx === -1) return;
-
-    const invest = safeNum(document.getElementById("rec_invest")?.value);
-    const qty = safeNum(document.getElementById("rec_qty")?.value);
-    const price = safeNum(document.getElementById("rec_price")?.value);
-
-    if (invest < 0) return alert("Invest inválido.");
-    if (qty < 0) return alert("Qty inválida.");
-    if (qty > 0 && price <= 0) return alert("Preço tem de ser > 0 quando qty > 0.");
-
-    data.crypto[idx].invest = invest;
-    data.crypto[idx].qty = qty;
-    if (qty === 0) {
-      // opcional: manter price
-    } else {
-      data.crypto[idx].price = price;
-    }
-
-    setData(data);
-    renderCrypto();
-    renderPatrimonio();
-    closeReconcile();
-    return;
-  }
-}
-
   // -----------------------
-  // Init
+  // Init (ÚNICO e limpo)
   // -----------------------
   function init() {
+    if (window.__RAS_INIT_ONCE__) return;
+    window.__RAS_INIT_ONCE__ = true;
+
     const s = requireSession();
-    if (!s) retuACrn;
+    if (!s) return;
 
     if (!localStorage.getItem(STORAGE.data)) {
       setData(structuredClone(DEFAULT_DATA));
     }
 
+    if (!localStorage.getItem(STORAGE.history)) {
+      const hist = structuredClone(DEFAULT_HISTORY);
+      hist.meta = hist.meta || {};
+      hist.meta.lastUpdated = nowISO();
+      localStorage.setItem(STORAGE.history, JSON.stringify(hist));
+    }
+
+    // ✅ API global para módulos (vendas.js / futuro)
+    window.RAS = window.RAS || {};
+    window.RAS.refresh = () => {
+      renderAll();
+      showSection(readHash());
+    };
+    window.RAS.history = window.RAS.history || {};
+    window.RAS.history.snapshot = historySnapshot;
+    window.RAS.ledger = window.RAS.ledger || {};
+    window.RAS.ledger.append = ledgerAppend;
+
     bindEvents();
-    // 🔄 quando outro módulo (ex: vendas.js) alterar dados, re-render imediato
-window.addEventListener("ras:data-updated", () => {
-  renderAll();
-  // mantém a secção atual (para não saltar)
-  showSection(readHash());
-});
+    bindHistoryUI();
 
     renderAll();
-
-    const section = readHash();
-    showSection(section);
+    showSection(readHash());
   }
 
   document.addEventListener("DOMContentLoaded", init);

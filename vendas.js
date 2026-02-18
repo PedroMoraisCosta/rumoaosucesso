@@ -18,9 +18,10 @@
   const SALES_KEY = "ras_vendas_v1";
   const PORT_KEY = "ras_data_v1";
 
+  // ✅ alinhar com app.js (bancoPessoal)
   const DEFAULT_PORTFOLIO = {
     meta: { lastUpdated: null },
-    patrimonio: { bancoCodeconnect: 0 },
+    patrimonio: { bancoPessoal: 0 },
     stocks: [],
     dividends: [],
     crypto: [],
@@ -66,6 +67,9 @@
     tbody: $("tradesTbody"),
   };
 
+  // ✅ Se a secção de Vendas não existir no HTML, não rebenta o dashboard
+  if (!els.section) return;
+
   let state = {
     list: [],
     editingId: null,
@@ -102,17 +106,98 @@
   function normalizeTicker(t) {
     return String(t || "").trim().toUpperCase();
   }
-    function portfolioQtyFor(classe, ticker) {
+
+  function notifyDashboard() {
+    // ✅ evento simples que o app.js já escuta
+    window.dispatchEvent(new Event("ras:data-updated"));
+  }
+
+  function safeSetText(el, value) {
+    if (!el) return;
+    el.textContent = value;
+  }
+
+  // -----------------------
+  // Storage
+  // -----------------------
+  function saveSales() {
+    // guarda só o estado necessário
+    const payload = {
+      list: state.list,
+      showTax: state.showTax,
+      taxRate: state.taxRate
+    };
+    localStorage.setItem(SALES_KEY, JSON.stringify(payload));
+  }
+
+  function loadSales() {
+    try {
+      const raw = localStorage.getItem(SALES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+
+      state.list = Array.isArray(parsed.list) ? parsed.list : [];
+      state.showTax = parsed.showTax !== false;
+      state.taxRate = Number.isFinite(Number(parsed.taxRate)) ? Number(parsed.taxRate) : 28;
+    } catch {
+      // ignora
+    }
+  }
+
+  function getPortfolio() {
+    try {
+      const raw = localStorage.getItem(PORT_KEY);
+      if (!raw) return structuredClone(DEFAULT_PORTFOLIO);
+      const parsed = JSON.parse(raw);
+
+      // ✅ migração defensiva (caso exista bancoCodeconnect antigo)
+      if (parsed?.patrimonio?.bancoCodeconnect != null && parsed?.patrimonio?.bancoPessoal == null) {
+        parsed.patrimonio.bancoPessoal = parsed.patrimonio.bancoCodeconnect;
+        delete parsed.patrimonio.bancoCodeconnect;
+      }
+
+      return { ...structuredClone(DEFAULT_PORTFOLIO), ...parsed };
+    } catch {
+      return structuredClone(DEFAULT_PORTFOLIO);
+    }
+  }
+
+  function setPortfolio(data) {
+    data.meta = data.meta || {};
+    data.meta.lastUpdated = nowISO();
+    localStorage.setItem(PORT_KEY, JSON.stringify(data));
+
+    // ✅ atualiza dashboard (sem loops / sem chamar refresh diretamente)
+    notifyDashboard();
+  }
+
+  // -----------------------
+  // Portfolio helpers (S2)
+  // -----------------------
+  function portfolioHasTicker(classe, tickerNorm) {
+    const port = getPortfolio();
+    const t = normalizeTicker(tickerNorm);
+
+    if (classe === "acoes") {
+      return (port.stocks || []).some(s => normalizeTicker(s.ticker) === t);
+    }
+    if (classe === "cripto") {
+      return (port.crypto || []).some(c => normalizeTicker(c.coin) === t);
+    }
+    return true; // outras classes não bloqueiam
+  }
+
+  function portfolioQtyFor(classe, ticker) {
     const port = getPortfolio();
     const t = normalizeTicker(ticker);
 
     if (classe === "acoes") {
-      const row = port.stocks.find(s => normalizeTicker(s.ticker) === t);
+      const row = (port.stocks || []).find(s => normalizeTicker(s.ticker) === t);
       return row ? num(row.qty) : 0;
     }
 
     if (classe === "cripto") {
-      const row = port.crypto.find(c => normalizeTicker(c.coin) === t);
+      const row = (port.crypto || []).find(c => normalizeTicker(c.coin) === t);
       return row ? num(row.qty) : 0;
     }
 
@@ -127,10 +212,9 @@
     // só validamos classes que mexem no portefólio
     if (!["acoes", "cripto"].includes(classe)) return { ok: true };
 
-    // qty atual no portefólio
     let available = portfolioQtyFor(classe, ticker);
 
-    // se está a editar, "devolve" a qty antiga para comparar corretamente
+    // se está a editar, devolve qty antiga
     if (editingId) {
       const prev = state.list.find(x => x.id === editingId);
       if (prev && normalizeTicker(prev.ticker) === ticker && prev.classe === classe) {
@@ -139,80 +223,10 @@
     }
 
     if (qtyNew > available) {
-      return {
-        ok: false,
-        msg: `Não dá para vender ${qtyNew} de ${ticker}. Tens ${available} disponível.`
-      };
+      return { ok: false, msg: `Não dá para vender ${qtyNew} de ${ticker}. Tens ${available} disponível.` };
     }
-
     return { ok: true };
   }
-
-function notifyDashboard() {
-  window.dispatchEvent(new CustomEvent("ras:data-updated", {
-    detail: { source: "vendas", at: nowISO() }
-  }));
-}
-
-  function saveSales() {
-    localStorage.setItem(SALES_KEY, JSON.stringify(state));
-  }
-
-  function loadSales() {
-    try {
-      const raw = localStorage.getItem(SALES_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        state = {
-          ...state,
-          ...parsed,
-          list: Array.isArray(parsed.list) ? parsed.list : [],
-        };
-      }
-    } catch {
-      // ignora
-    }
-  }
-
-  function getPortfolio() {
-    try {
-      const raw = localStorage.getItem(PORT_KEY);
-      if (!raw) return structuredClone(DEFAULT_PORTFOLIO);
-      const parsed = JSON.parse(raw);
-      return { ...structuredClone(DEFAULT_PORTFOLIO), ...parsed };
-    } catch {
-      return structuredClone(DEFAULT_PORTFOLIO);
-    }
-  }
-
-  function setPortfolio(data) {
-  data.meta = data.meta || {};
-  data.meta.lastUpdated = nowISO();
-  localStorage.setItem(PORT_KEY, JSON.stringify(data));
-
-  // ✅ força update imediato do dashboard (sem refresh)
-  if (window.RAS && typeof window.RAS.refresh === "function") {
-    window.RAS.refresh();
-  } else {
-    // fallback
-    window.dispatchEvent(new Event("ras:data-updated"));
-  }
-}
-function portfolioHasTicker(classe, ticker) {
-  const port = getPortfolio();
-
-  if (classe === "acoes") {
-    return port.stocks.some(s => normalizeTicker(s.ticker) === ticker);
-  }
-
-  if (classe === "cripto") {
-    return port.crypto.some(c => normalizeTicker(c.coin) === ticker);
-  }
-
-  return true; // outras classes não bloqueiam
-}
-
 
   // -----------------------
   // Cálculos
@@ -241,7 +255,7 @@ function portfolioHasTicker(classe, ticker) {
   function applyTradeToPortfolio(trade, dir) {
     // dir = +1 aplicar venda (reduz holdings)
     // dir = -1 rollback (volta a aumentar holdings)
-    const classe = trade.classe;
+    const classe = (trade.classe || "").trim();
     const ticker = normalizeTicker(trade.ticker);
     const qty = num(trade.qty);
     const avgBuy = num(trade.avgBuy);
@@ -251,35 +265,32 @@ function portfolioHasTicker(classe, ticker) {
     const port = getPortfolio();
 
     if (classe === "acoes") {
-      const idx = port.stocks.findIndex(s => normalizeTicker(s.ticker) === ticker);
+      const idx = (port.stocks || []).findIndex(s => normalizeTicker(s.ticker) === ticker);
       if (idx === -1) {
-        // Não existe no portefólio — não mexe, mas avisa (debug)
         console.warn("[Vendas Sync] Ticker não existe em stocks:", ticker);
         return;
       }
 
-      const delta = -qty * dir; // aplicar: -qty | rollback: +qty
-      const newQty = num(port.stocks[idx].qty) + delta;
+      const deltaQty = -qty * dir; // aplicar: -qty | rollback: +qty
+      const newQty = num(port.stocks[idx].qty) + deltaQty;
       port.stocks[idx].qty = Math.max(0, newQty);
 
-      // se qty ficar 0, opcionalmente podes manter a linha (eu mantenho)
       setPortfolio(port);
       return;
     }
 
     if (classe === "cripto") {
-      const idx = port.crypto.findIndex(c => normalizeTicker(c.coin) === ticker);
+      const idx = (port.crypto || []).findIndex(c => normalizeTicker(c.coin) === ticker);
       if (idx === -1) {
         console.warn("[Vendas Sync] Moeda não existe em crypto:", ticker);
         return;
       }
 
-      const deltaQty = -qty * dir; // aplicar: -qty | rollback: +qty
+      const deltaQty = -qty * dir;
       const newQty = num(port.crypto[idx].qty) + deltaQty;
       port.crypto[idx].qty = Math.max(0, newQty);
 
       // Ajuste simples do investido (custo base por qty*avgBuy)
-      // aplicar: reduz invest | rollback: aumenta invest
       const deltaInvest = -(qty * avgBuy) * dir;
       const newInvest = num(port.crypto[idx].invest) + deltaInvest;
       port.crypto[idx].invest = Math.max(0, newInvest);
@@ -294,12 +305,10 @@ function portfolioHasTicker(classe, ticker) {
   function rollbackTradeById(id) {
     const prev = state.list.find(x => x.id === id);
     if (!prev) return;
-    // rollback = dir -1
     applyTradeToPortfolio(prev, -1);
   }
 
   function applyTrade(trade) {
-    // aplicar = dir +1
     applyTradeToPortfolio(trade, +1);
   }
 
@@ -316,6 +325,8 @@ function portfolioHasTicker(classe, ticker) {
   }
 
   function rebuildYearFilter() {
+    if (!els.filterYear) return;
+
     const current = els.filterYear.value || "all";
     const years = getYearsFromList(state.list);
 
@@ -335,8 +346,8 @@ function portfolioHasTicker(classe, ticker) {
   }
 
   function filteredList() {
-    const year = els.filterYear.value || "all";
-    const classe = els.filterClasse.value || "all";
+    const year = els.filterYear ? (els.filterYear.value || "all") : "all";
+    const classe = els.filterClasse ? (els.filterClasse.value || "all") : "all";
 
     return state.list.filter(it => {
       const y = (it.date || "").slice(0, 4);
@@ -348,8 +359,7 @@ function portfolioHasTicker(classe, ticker) {
 
   function applyTaxUI() {
     const show = !!state.showTax;
-    const nodes = document.querySelectorAll(".tax-ui");
-    nodes.forEach(n => {
+    document.querySelectorAll(".tax-ui").forEach(n => {
       n.style.display = show ? "" : "none";
     });
   }
@@ -359,44 +369,44 @@ function portfolioHasTicker(classe, ticker) {
   // -----------------------
   function setEditMode(id) {
     state.editingId = id;
-
     const row = state.list.find(x => x.id === id);
     if (!row) return;
 
-    els.tradeDate.value = row.date || "";
-    els.tradeClasse.value = row.classe || "acoes";
-    els.tradeTicker.value = row.ticker || "";
-    els.tradeQty.value = row.qty ?? "";
-    els.tradeAvgBuy.value = row.avgBuy ?? "";
-    els.tradeSellPrice.value = row.sellPrice ?? "";
-    els.tradeFees.value = row.fees ?? 0;
-    els.tradeNotes.value = row.notes || "";
+    if (els.tradeDate) els.tradeDate.value = row.date || "";
+    if (els.tradeClasse) els.tradeClasse.value = row.classe || "acoes";
+    if (els.tradeTicker) els.tradeTicker.value = row.ticker || "";
+    if (els.tradeQty) els.tradeQty.value = row.qty ?? "";
+    if (els.tradeAvgBuy) els.tradeAvgBuy.value = row.avgBuy ?? "";
+    if (els.tradeSellPrice) els.tradeSellPrice.value = row.sellPrice ?? "";
+    if (els.tradeFees) els.tradeFees.value = row.fees ?? 0;
+    if (els.tradeNotes) els.tradeNotes.value = row.notes || "";
 
-    els.btnAdd.textContent = "Guardar";
-    els.btnCancel.classList.remove("d-none");
+    if (els.btnAdd) els.btnAdd.textContent = "Guardar";
+    if (els.btnCancel) els.btnCancel.classList.remove("d-none");
   }
 
   function clearEditMode() {
     state.editingId = null;
-    els.btnAdd.textContent = "Adicionar";
-    els.btnCancel.classList.add("d-none");
-    els.form.reset();
-    els.tradeFees.value = 0;
+    if (els.btnAdd) els.btnAdd.textContent = "Adicionar";
+    if (els.btnCancel) els.btnCancel.classList.add("d-none");
+    if (els.form) els.form.reset();
+    if (els.tradeFees) els.tradeFees.value = 0;
   }
 
   function validateForm() {
-    const date = (els.tradeDate.value || "").trim();
-    const classe = (els.tradeClasse.value || "").trim();
-    const ticker = normalizeTicker(els.tradeTicker.value);
-// S2 — bloquear vendas de tickers que não existem no portefólio (para ações/cripto)
-if ((classe === "acoes" || classe === "cripto") && !portfolioHasTicker(classe, ticker)) {
-  return { ok: false, msg: `Esse ${classe === "acoes" ? "ticker" : "ativo"} não existe no portefólio (${ticker}).` };
-}
+    const date = (els.tradeDate?.value || "").trim();
+    const classe = (els.tradeClasse?.value || "").trim();
+    const ticker = normalizeTicker(els.tradeTicker?.value);
 
-    const qty = num(els.tradeQty.value);
-    const avgBuy = num(els.tradeAvgBuy.value);
-    const sellPrice = num(els.tradeSellPrice.value);
-    const fees = num(els.tradeFees.value);
+    // S2 — bloquear vendas de tickers que não existem no portefólio (ações/cripto)
+    if ((classe === "acoes" || classe === "cripto") && !portfolioHasTicker(classe, ticker)) {
+      return { ok: false, msg: `Esse ${classe === "acoes" ? "ticker" : "ativo"} não existe no portefólio (${ticker}).` };
+    }
+
+    const qty = num(els.tradeQty?.value);
+    const avgBuy = num(els.tradeAvgBuy?.value);
+    const sellPrice = num(els.tradeSellPrice?.value);
+    const fees = num(els.tradeFees?.value);
 
     if (!date) return { ok: false, msg: "Falta a data." };
     if (!classe) return { ok: false, msg: "Falta a classe." };
@@ -416,45 +426,34 @@ if ((classe === "acoes" || classe === "cripto") && !portfolioHasTicker(classe, t
         avgBuy,
         sellPrice,
         fees,
-        notes: (els.tradeNotes.value || "").trim(),
+        notes: (els.tradeNotes?.value || "").trim(),
       }
     };
   }
 
   function upsertTrade() {
     const v = validateForm();
-    if (!v.ok) {
-      alert(v.msg);
-      return;
-    }
-    // ✅ valida se não está a vender mais do que tem (considera edição)
+    if (!v.ok) return alert(v.msg);
+
     const guard = canApplyTrade(v.data, state.editingId);
-    if (!guard.ok) {
-      alert(guard.msg);
-      return;
-    }
+    if (!guard.ok) return alert(guard.msg);
 
-    // 1) se está a editar, faz rollback do impacto anterior no portefólio
-    if (state.editingId) {
-      rollbackTradeById(state.editingId);
-    }
+    // 1) se editar, rollback impacto anterior
+    if (state.editingId) rollbackTradeById(state.editingId);
 
-    // 2) aplica a nova venda no portefólio
+    // 2) aplica nova venda
     applyTrade(v.data);
 
-    // 3) guarda na lista (update/insert)
+    // 3) guarda na lista
     if (state.editingId) {
       const idx = state.list.findIndex(x => x.id === state.editingId);
-      if (idx >= 0) {
-        state.list[idx] = { ...state.list[idx], ...v.data };
-      }
+      if (idx >= 0) state.list[idx] = { ...state.list[idx], ...v.data };
     } else {
       state.list.push({ id: uid(), ...v.data });
     }
 
     state.editingId = null;
 
-    // ordena por data desc
     state.list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
     saveSales();
@@ -467,20 +466,18 @@ if ((classe === "acoes" || classe === "cripto") && !portfolioHasTicker(classe, t
   function removeTrade(id) {
     if (!confirm("Tens a certeza que queres apagar esta realização?")) return;
 
-    // rollback no portefólio
     rollbackTradeById(id);
 
     state.list = state.list.filter(x => x.id !== id);
     saveSales();
     rebuildYearFilter();
+    notifyDashboard();
     render();
   }
-  window.dispatchEvent(new Event("ras:data-updated"));
 
   function clearAll() {
     if (!confirm("Tens a certeza que queres apagar TODAS as vendas/realizações?")) return;
 
-    // rollback de todas as vendas (volta o portefólio ao estado pré-vendas)
     for (const t of state.list) {
       applyTradeToPortfolio(t, -1);
     }
@@ -492,7 +489,6 @@ if ((classe === "acoes" || classe === "cripto") && !portfolioHasTicker(classe, t
     notifyDashboard();
     render();
   }
-window.dispatchEvent(new Event("ras:data-updated"));
 
   // -----------------------
   // Render
@@ -515,21 +511,23 @@ window.dispatchEvent(new Event("ras:data-updated"));
 
     const pctSum = investedSum > 0 ? (profitSum / investedSum) * 100 : 0;
 
-    els.tInvested.textContent = euro(investedSum);
-    els.tReceived.textContent = euro(receivedSum);
-    els.tProfit.textContent = euro(profitSum);
-    els.tProfitPct.textContent = pct(pctSum);
+    safeSetText(els.tInvested, euro(investedSum));
+    safeSetText(els.tReceived, euro(receivedSum));
+    safeSetText(els.tProfit, euro(profitSum));
+    safeSetText(els.tProfitPct, pct(pctSum));
 
-    els.tTax.textContent = euro(taxSum);
-    els.tNet.textContent = euro(netSum);
+    safeSetText(els.tTax, euro(taxSum));
+    safeSetText(els.tNet, euro(netSum));
 
-    els.yProfit.textContent = euro(profitSum);
-    els.yTax.textContent = euro(taxSum);
-    els.yNet.textContent = euro(netSum);
-    els.yCount.textContent = String(list.length);
+    safeSetText(els.yProfit, euro(profitSum));
+    safeSetText(els.yTax, euro(taxSum));
+    safeSetText(els.yNet, euro(netSum));
+    safeSetText(els.yCount, String(list.length));
   }
 
   function renderTable(list) {
+    if (!els.tbody) return;
+
     els.tbody.innerHTML = "";
 
     if (!list.length) {
@@ -566,14 +564,16 @@ window.dispatchEvent(new Event("ras:data-updated"));
       `;
 
       if (row.notes) tr.title = row.notes;
-
       els.tbody.appendChild(tr);
     }
   }
 
   function render() {
-    state.taxRate = num(els.taxRate.value || state.taxRate);
-    els.taxRate.value = state.taxRate;
+    // ✅ defensivo se taxRate não existir no HTML
+    if (els.taxRate) {
+      state.taxRate = num(els.taxRate.value || state.taxRate);
+      els.taxRate.value = state.taxRate;
+    }
 
     const list = filteredList();
     renderTotals(list);
@@ -586,62 +586,85 @@ window.dispatchEvent(new Event("ras:data-updated"));
   // Events
   // -----------------------
   function wireEvents() {
-    els.form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      upsertTrade();
-    });
+    if (els.form) {
+      els.form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        upsertTrade();
+      });
+    }
 
-    els.btnCancel.addEventListener("click", () => {
-      clearEditMode();
-    });
+    if (els.btnCancel) {
+      els.btnCancel.addEventListener("click", () => clearEditMode());
+    }
 
-    els.btnClearAll.addEventListener("click", () => {
-      clearAll();
-    });
+    if (els.btnClearAll) {
+      els.btnClearAll.addEventListener("click", () => clearAll());
+    }
 
-    els.filterYear.addEventListener("change", render);
-    els.filterClasse.addEventListener("change", render);
+    if (els.filterYear) els.filterYear.addEventListener("change", render);
+    if (els.filterClasse) els.filterClasse.addEventListener("change", render);
 
-    els.toggleTax.addEventListener("change", () => {
-      state.showTax = !!els.toggleTax.checked;
-      applyTaxUI();
-      render();
-    });
+    if (els.toggleTax) {
+      els.toggleTax.addEventListener("change", () => {
+        state.showTax = !!els.toggleTax.checked;
+        applyTaxUI();
+        render();
+      });
+    }
 
-    els.taxRate.addEventListener("input", () => {
-      state.taxRate = num(els.taxRate.value);
-      render();
-    });
+    if (els.taxRate) {
+      els.taxRate.addEventListener("input", () => {
+        state.taxRate = num(els.taxRate.value);
+        render();
+      });
+    }
 
-    els.tbody.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-act]");
-      if (!btn) return;
+    if (els.tbody) {
+      els.tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
 
-      const act = btn.getAttribute("data-act");
-      const id = btn.getAttribute("data-id");
+        const act = btn.getAttribute("data-act");
+        const id = btn.getAttribute("data-id");
 
-      if (act === "edit") setEditMode(id);
-      if (act === "del") removeTrade(id);
-    });
+        if (act === "edit") setEditMode(id);
+        if (act === "del") removeTrade(id);
+      });
+    }
   }
 
   function initDefaults() {
+    if (!els.tradeDate) return;
+
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
+
     if (!els.tradeDate.value) els.tradeDate.value = `${yyyy}-${mm}-${dd}`;
+    if (els.tradeFees && (els.tradeFees.value == null || els.tradeFees.value === "")) els.tradeFees.value = 0;
   }
 
-  function init() {
-    if (!els.section) return;
+  // -----------------------
+  // Public API (para app.js)
+  // -----------------------
+  window.VENDAS = window.VENDAS || {};
+  window.VENDAS.render = render;
 
+  // -----------------------
+  // Init
+  // -----------------------
+  function init() {
     loadSales();
 
-    els.toggleTax.checked = state.showTax !== false;
-    state.showTax = !!els.toggleTax.checked;
+    if (els.toggleTax) {
+      els.toggleTax.checked = state.showTax !== false;
+      state.showTax = !!els.toggleTax.checked;
+    }
 
-    els.taxRate.value = state.taxRate ?? 28;
+    if (els.taxRate) {
+      els.taxRate.value = state.taxRate ?? 28;
+    }
 
     rebuildYearFilter();
     wireEvents();
