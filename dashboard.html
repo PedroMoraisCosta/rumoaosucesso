@@ -114,21 +114,29 @@
           </div>
         </div>
 
-        <!-- TOP ACTIONS -->
-        <div class="card shadow-sm mb-3">
-          <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
-            <div class="fw-semibold">Atalhos rápidos</div>
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-primary btn-sm" id="btnAddMovement" type="button">Adicionar movimento (em breve)</button>
-              <button class="btn btn-outline-secondary btn-sm" id="btnExportJson" type="button">Exportar JSON</button>
-              <button class="btn btn-outline-secondary btn-sm" id="btnImportJson" type="button">Importar JSON</button>
-              <button class="btn btn-outline-secondary btn-sm" id="btnLoadDemo" type="button">Carregar Demo</button>
-              <button class="btn btn-outline-danger btn-sm" id="btnWipeAll" type="button">Limpar dados</button>
-              <button class="btn btn-outline-primary btn-sm" id="btnExportAll" type="button">Backup TOTAL</button>
-              <button class="btn btn-outline-primary btn-sm" id="btnImportAll" type="button">Restaurar TOTAL</button>
-            </div>
-          </div>
-        </div>
+        <!-- TOP ACTIONS (colapsável) -->
+<div class="card shadow-sm mb-3" id="quickActionsCard">
+  <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-outline-secondary btn-sm" id="btnToggleQuickActions" type="button" aria-expanded="false">
+        ☰
+      </button>
+      <div class="fw-semibold">Atalhos rápidos</div>
+    </div>
+
+    <div id="quickActionsBody" class="ras-collapse">
+      <div class="d-flex flex-wrap gap-2 justify-content-end">
+        <button class="btn btn-primary btn-sm" id="btnAddMovement">Adicionar movimento (em breve)</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnExportJson">Exportar JSON</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnImportJson">Importar JSON</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnLoadDemo">Carregar Demo</button>
+        <button class="btn btn-outline-danger btn-sm" id="btnWipeAll">Limpar dados</button>
+        <button class="btn btn-outline-primary btn-sm" id="btnExportAll">Backup TOTAL</button>
+        <button class="btn btn-outline-primary btn-sm" id="btnImportAll">Restaurar TOTAL</button>
+      </div>
+    </div>
+  </div>
+</div>
 
         <!-- SECTION: PATRIMONIO -->
         <section id="sec-patrimonio" class="dash-section">

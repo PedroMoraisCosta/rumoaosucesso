@@ -211,3 +211,22 @@
     scheduleRecolor(); // 1ª pintura
   });
 })();
+// --- Quick Actions: abre/fecha e por defeito fechado ---
+(function () {
+  function initQuickActions() {
+    const btn = document.getElementById("btnToggleQuickActions");
+    const body = document.getElementById("quickActionsBody");
+    if (!btn || !body) return;
+
+    // default: fechado (como queres)
+    body.classList.remove("is-open");
+    btn.setAttribute("aria-expanded", "false");
+
+    btn.addEventListener("click", () => {
+      const open = body.classList.toggle("is-open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initQuickActions);
+})();

@@ -290,3 +290,37 @@ aside .card-body .mt-3.small.text-secondary{
     white-space: normal;
   }
 }
+/* ---------- Quick Actions (Atalhos) colapsável ---------- */
+#quickActionsCard .card-body {
+  gap: 10px;
+}
+
+/* por defeito fica fechado */
+.ras-collapse {
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 180ms ease;
+}
+
+/* aberto */
+.ras-collapse.is-open {
+  max-height: 160px; /* suficiente p/ 1-2 linhas de botões; ajusta se quiseres */
+}
+
+/* no desktop, mete os botões alinhados à direita */
+@media (min-width: 992px) {
+  #quickActionsBody .d-flex {
+    justify-content: flex-end;
+  }
+}
+
+/* botão do toggle mais “hambúrguer” */
+#btnToggleQuickActions {
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
