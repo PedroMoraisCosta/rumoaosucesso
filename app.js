@@ -1,4 +1,4 @@
-/* app.js — Dashboard V1 (localStorage) */
+/* app.js — Dashboard V1 (localStorage) — FIXED */
 (function () {
   const $ = (id) => document.getElementById(id);
 
@@ -63,15 +63,36 @@
     return Math.random().toString(16).slice(2) + Date.now().toString(16);
   }
 
+  // Merge defensivo (sem shallow traps)
+  function mergeData(incoming) {
+    const base = structuredClone(DEFAULT_DATA);
+    if (!incoming || typeof incoming !== "object") return base;
+
+    const out = structuredClone(base);
+    Object.assign(out, incoming);
+
+    out.meta = { ...(base.meta || {}), ...(incoming.meta || {}) };
+    out.patrimonio = { ...(base.patrimonio || {}), ...(incoming.patrimonio || {}) };
+
+    out.stocks = Array.isArray(incoming.stocks) ? incoming.stocks : [];
+    out.dividends = Array.isArray(incoming.dividends) ? incoming.dividends : [];
+    out.crypto = Array.isArray(incoming.crypto) ? incoming.crypto : [];
+    out.p2p = Array.isArray(incoming.p2p) ? incoming.p2p : [];
+    out.funds = Array.isArray(incoming.funds) ? incoming.funds : [];
+
+    return out;
+  }
+
   // -----------------------
   // Data storage
   // -----------------------
   function setData(data) {
-    data.meta = data.meta || {};
-    data.meta.lastUpdated = nowISO();
-    localStorage.setItem(STORAGE.data, JSON.stringify(data));
+    const merged = mergeData(data);
+    merged.meta = merged.meta || {};
+    merged.meta.lastUpdated = nowISO();
+    localStorage.setItem(STORAGE.data, JSON.stringify(merged));
 
-    // 🔔 notifica UI + outros módulos (vendas.js)
+    // 🔔 notifica UI + outros módulos (vendas.js / graficos.js)
     window.dispatchEvent(new Event("ras:data-updated"));
   }
 
@@ -80,7 +101,7 @@
       const raw = localStorage.getItem(STORAGE.data);
       if (!raw) return structuredClone(DEFAULT_DATA);
       const parsed = JSON.parse(raw);
-      return { ...structuredClone(DEFAULT_DATA), ...parsed };
+      return mergeData(parsed);
     } catch {
       return structuredClone(DEFAULT_DATA);
     }
@@ -119,7 +140,7 @@
     hist.meta.lastUpdated = nowISO();
     localStorage.setItem(STORAGE.history, JSON.stringify(hist));
 
-    // 🔔 atualiza imediatamente
+    // 🔔 atualiza imediatamente (histórico é seção própria)
     renderHistorico();
   }
 
@@ -192,22 +213,19 @@
   }
 
   // -----------------------
-  // Chart.js — Histórico (FUNÇÃO SEPARADA E SEGURA)
+  // Chart.js — Histórico
   // -----------------------
   function renderHistChart(hist) {
     try {
       const canvas = $("histChart");
       if (!canvas) return;
 
-      if (!window.Chart) {
-        // Chart.js não carregou (script em falta ou ordem errada)
-        return;
-      }
+      if (!window.Chart) return;
 
       const monthsObj = hist?.months || {};
       const keysAll = Object.keys(monthsObj)
         .filter(k => isValidMonthKey(k))
-        .sort((a, b) => a.localeCompare(b)); // crescente
+        .sort((a, b) => a.localeCompare(b));
 
       const labels = [];
       const values = [];
@@ -219,7 +237,6 @@
         values.push(Number(val || 0));
       }
 
-      // se não há dados, limpa chart (ou cria vazio)
       if (!labels.length) {
         if (window.__RAS_HIST_CHART__) {
           window.__RAS_HIST_CHART__.data.labels = [];
@@ -295,7 +312,6 @@
       `;
     }).join("");
 
-    // Delegação (não duplica listeners)
     if (!tbody.__bound) {
       tbody.__bound = true;
       tbody.addEventListener("click", (e) => {
@@ -308,7 +324,6 @@
       });
     }
 
-    // chart sempre depois de desenhar tabela
     renderHistChart(hist);
   }
 
@@ -339,16 +354,14 @@
     }
   }
 
-  // “Ledger” (futuro)
+  // Ledger reservado (futuro)
   function ledgerAppend(entry) {
     try {
       const raw = localStorage.getItem(STORAGE.ledger);
       const arr = raw ? JSON.parse(raw) : [];
       arr.push({ ...entry, createdAt: nowISO() });
       localStorage.setItem(STORAGE.ledger, JSON.stringify(arr));
-    } catch {
-      // ignora
-    }
+    } catch {}
   }
 
   // -----------------------
@@ -402,7 +415,7 @@
     fundos: { title: "Fundos Parados", el: "sec-fundos" },
     vendas: { title: "Vendas / Realizações", el: "sec-vendas" },
     graficos: { title: "Gráficos", el: "sec-graficos" },
-    ia: { title: "Resumo por IA", el: "sec-ia" },
+    movimentos: { title: "Movimentos", el: "sec-movimentos" },
     historico: { title: "Histórico", el: "sec-historico" }
   };
 
@@ -413,19 +426,45 @@
     });
   }
 
-  function showSection(section) {
-    const key = SECTION_MAP[section] ? section : "patrimonio";
-  if (window.location.hash !== `#${key}`) {
-   window.location.hash = `#${key}`;
+  function getActiveKey() {
+    const h = (window.location.hash || "").replace("#", "").trim();
+    return SECTION_MAP[h] ? h : "patrimonio";
+  }
+
+ function renderSection(key) {
+  try {
+    if (key === "patrimonio") renderPatrimonio();
+    if (key === "acoes") { renderStocks(); renderDividends(); }
+    if (key === "cripto") renderCrypto();
+    if (key === "p2p") renderP2P();
+    if (key === "fundos") renderFunds();
+    if (key === "historico") renderHistorico();
+
+    if (key === "vendas") {
+      if (window.VENDAS && typeof window.VENDAS.render === "function") window.VENDAS.render();
+      else console.warn("[VENDAS] vendas.js não carregou ou não expôs window.VENDAS.render()");
+    }
+
+    // ✅ MOVIMENTOS (Ledger)
+    if (key === "movimentos") {
+      if (window.LEDGER && typeof window.LEDGER.render === "function") window.LEDGER.render();
+      else console.warn("[LEDGER] Módulo ledger.js não carregou ou não expôs window.LEDGER.render()");
+    }
+
+    // graficos.js trata do render dele (hook no menu/eventos)
+  } catch (e) {
+    console.warn("[renderSection] erro na secção:", key, e);
+  }
 }
 
-    // esconder todas
+  function showSection(section) {
+    const key = SECTION_MAP[section] ? section : "patrimonio";
+
     Object.values(SECTION_MAP).forEach(v => {
       const el = $(v.el);
       if (el) el.style.display = "none";
     });
 
-    // mostrar a escolhida
     const target = $(SECTION_MAP[key].el);
     if (target) target.style.display = "block";
 
@@ -434,36 +473,91 @@
     const t = $("pageTitle");
     if (t) t.textContent = SECTION_MAP[key].title;
 
-    // render por secção (evita “secção vazia” quando algo não atualiza)
-    try {
-      if (key === "p2p" && typeof renderP2P === "function") renderP2P();
-      if (key === "fundos" && typeof renderFunds === "function") renderFunds();
-      if (key === "historico") renderHistorico();
-
-      if (key === "vendas") {
-        if (window.VENDAS && typeof window.VENDAS.render === "function") window.VENDAS.render();
-      }
-    } catch (e) {
-      console.warn("Erro ao renderizar secção:", key, e);
-    }
+    renderSection(key);
   }
-
-  function readHash() {
-  let h = (window.location.hash || "").replace("#", "").trim();
-
-  // aceita hashes do tipo #sec-cripto, #sec-p2p, etc.
-  if (h.startsWith("sec-")) h = h.replace("sec-", "");
-
-  // compatibilidade extra (se algum link estiver #crypto)
-  if (h === "crypto") h = "cripto";
-
-  return h || "patrimonio";
-}
-
 
   // -----------------------
   // Global actions (export/import/demo/wipe)
   // -----------------------
+  const SALES_KEY = "ras_vendas_v1";
+
+  function exportBackupAll() {
+    try {
+      const dataRaw = localStorage.getItem(STORAGE.data);
+      const histRaw = localStorage.getItem(STORAGE.history);
+      const salesRaw = localStorage.getItem(SALES_KEY);
+
+      const bundle = {
+        schema: "ras_backup_all_v1",
+        exportedAt: nowISO(),
+        app: "Rumo ao Sucesso",
+        payload: {
+          data: dataRaw ? JSON.parse(dataRaw) : structuredClone(DEFAULT_DATA),
+          history: histRaw ? JSON.parse(histRaw) : structuredClone(DEFAULT_HISTORY),
+          vendas: salesRaw ? JSON.parse(salesRaw) : { list: [], showTax: true, taxRate: 28 }
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `rumo-ao-sucesso-backup-TOTAL-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      alert("Backup TOTAL exportado ✅");
+    } catch (e) {
+      console.error("[exportBackupAll] erro:", e);
+      alert("Falha ao exportar backup TOTAL.");
+    }
+  }
+
+  function importBackupAll() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const obj = JSON.parse(text);
+
+        if (!obj || obj.schema !== "ras_backup_all_v1" || !obj.payload || typeof obj.payload !== "object") {
+          return alert("Este ficheiro não é um backup TOTAL válido (ras_backup_all_v1).");
+        }
+
+        const incomingData = obj.payload.data ?? structuredClone(DEFAULT_DATA);
+        const incomingHist = obj.payload.history ?? structuredClone(DEFAULT_HISTORY);
+        const incomingSales = obj.payload.vendas ?? { list: [], showTax: true, taxRate: 28 };
+
+        // MIGRAÇÃO: bancoCodeconnect -> bancoPessoal
+        if (incomingData?.patrimonio?.bancoCodeconnect != null && incomingData?.patrimonio?.bancoPessoal == null) {
+          incomingData.patrimonio.bancoPessoal = incomingData.patrimonio.bancoCodeconnect;
+          delete incomingData.patrimonio.bancoCodeconnect;
+        }
+
+        localStorage.setItem(STORAGE.data, JSON.stringify(mergeData(incomingData)));
+        localStorage.setItem(STORAGE.history, JSON.stringify({ ...structuredClone(DEFAULT_HISTORY), ...incomingHist }));
+        localStorage.setItem(SALES_KEY, JSON.stringify(incomingSales));
+
+        // ✅ UM refresh apenas (anti-lag / anti-loop)
+        window.dispatchEvent(new Event("ras:data-updated"));
+        alert("Backup TOTAL importado ✅");
+      } catch (e) {
+        console.error("[importBackupAll] erro:", e);
+        alert("Falha ao importar. JSON inválido ou corrompido.");
+      }
+    };
+
+    input.click();
+  }
+
   function exportJSON() {
     const data = getData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -487,15 +581,14 @@
       try {
         const text = await file.text();
         const obj = JSON.parse(text);
-        const merged = { ...structuredClone(DEFAULT_DATA), ...obj };
 
-        if (merged?.patrimonio?.bancoCodeconnect != null && merged?.patrimonio?.bancoPessoal == null) {
-          merged.patrimonio.bancoPessoal = merged.patrimonio.bancoCodeconnect;
-          delete merged.patrimonio.bancoCodeconnect;
+        // MIGRAÇÃO: bancoCodeconnect -> bancoPessoal
+        if (obj?.patrimonio?.bancoCodeconnect != null && obj?.patrimonio?.bancoPessoal == null) {
+          obj.patrimonio.bancoPessoal = obj.patrimonio.bancoCodeconnect;
+          delete obj.patrimonio.bancoCodeconnect;
         }
 
-        setData(merged);
-        renderAll();
+        setData(obj);
         alert("Importado com sucesso ✅");
       } catch {
         alert("JSON inválido. Não foi possível importar.");
@@ -509,15 +602,13 @@
       const res = await fetch("./data/demo.json", { cache: "no-store" });
       if (!res.ok) throw new Error("Falha a carregar demo.json");
       const obj = await res.json();
-      const merged = { ...structuredClone(DEFAULT_DATA), ...obj };
 
-      if (merged?.patrimonio?.bancoCodeconnect != null && merged?.patrimonio?.bancoPessoal == null) {
-        merged.patrimonio.bancoPessoal = merged.patrimonio.bancoCodeconnect;
-        delete merged.patrimonio.bancoCodeconnect;
+      if (obj?.patrimonio?.bancoCodeconnect != null && obj?.patrimonio?.bancoPessoal == null) {
+        obj.patrimonio.bancoPessoal = obj.patrimonio.bancoCodeconnect;
+        delete obj.patrimonio.bancoCodeconnect;
       }
 
-      setData(merged);
-      renderAll();
+      setData(obj);
       alert("Demo carregada ✅");
     } catch {
       alert("Não consegui carregar ./data/demo.json. Confirma se existe na pasta /data.");
@@ -527,7 +618,6 @@
   function wipeAllData() {
     if (!confirmDanger("Tens a certeza que queres APAGAR todos os dados?")) return;
     setData(structuredClone(DEFAULT_DATA));
-    renderAll();
   }
 
   // -----------------------
@@ -568,12 +658,11 @@
     if (years == null) years = safeNum(row.years);
     if (!Number.isFinite(years) || years <= 0) years = 1;
 
-    const profit = invested * (rate / 100) * years; // simples
+    const profit = invested * (rate / 100) * years;
     const finalValue = invested + profit;
     const pct = invested > 0 ? (profit / invested) * 100 : 0;
 
     const profitPerYear = invested * (rate / 100);
-
     return { years, finalValue, profit, pct, profitPerYear };
   }
 
@@ -588,16 +677,13 @@
         : 0;
 
     const profitPerYear = data.p2p.reduce((a, x) => a + calcP2PRow(x).profitPerYear, 0);
-
     return { invested, finals, profit, avgPct, profitPerYear };
   }
 
   // Fundos Parados = COMPOSTOS (mensal/anual)
   function annualRateFromFunds(rate, freq) {
     const r = safeNum(rate) / 100;
-    if (freq === "monthly") {
-      return (Math.pow(1 + r, 12) - 1) * 100;
-    }
+    if (freq === "monthly") return (Math.pow(1 + r, 12) - 1) * 100;
     return r * 100;
   }
 
@@ -706,6 +792,7 @@
   function upsertStock(row) {
     const data = getData();
     const ticker = String(row.ticker || "").trim().toUpperCase();
+    const sector = String(row.sector || "").trim(); // ✅
     if (!ticker) return alert("Ticker inválido.");
     const qty = safeNum(row.qty);
     const avg = safeNum(row.avg);
@@ -715,11 +802,11 @@
 
     if (stEditingId) {
       const idx = data.stocks.findIndex(x => x.id === stEditingId);
-      if (idx >= 0) data.stocks[idx] = { ...data.stocks[idx], ticker, qty, avg, cur };
+      if (idx >= 0) data.stocks[idx] = { ...data.stocks[idx], ticker, sector, qty, avg, cur }; // ✅ sector
       stEditingId = null;
     } else {
       const id = cryptoRandomId();
-      data.stocks.push({ id, ticker, qty, avg, cur });
+      data.stocks.push({ id, ticker, sector, qty, avg, cur }); // ✅ sector
     }
 
     setData(data);
@@ -728,6 +815,7 @@
 
   function clearStockForm() {
     if ($("stTicker")) $("stTicker").value = "";
+    if ($("stSector")) $("stSector").value = ""; // ✅
     if ($("stQty")) $("stQty").value = "";
     if ($("stAvg")) $("stAvg").value = "";
     if ($("stCur")) $("stCur").value = "";
@@ -784,6 +872,7 @@
           if (!row) return;
           stEditingId = id;
           if ($("stTicker")) $("stTicker").value = row.ticker;
+          if ($("stSector")) $("stSector").value = row.sector || ""; // ✅
           if ($("stQty")) $("stQty").value = row.qty;
           if ($("stAvg")) $("stAvg").value = row.avg;
           if ($("stCur")) $("stCur").value = row.cur;
@@ -1272,7 +1361,7 @@
   }
 
   // -----------------------
-  // Render All
+  // Render All (só usado no init)
   // -----------------------
   function renderAll() {
     renderSession();
@@ -1289,17 +1378,22 @@
   // Events
   // -----------------------
   function bindEvents() {
-    window.addEventListener("hashchange", () => showSection(readHash()));
+    $("btnExportAll")?.addEventListener("click", exportBackupAll);
+    $("btnImportAll")?.addEventListener("click", importBackupAll);
 
-   document.querySelectorAll("#menuList a").forEach(a => {
-  a.addEventListener("click", (e) => {
-    e.preventDefault();
-    const s = a.getAttribute("data-section");
-    if (!s) return;
-    window.location.hash = `#${s}`; // isto chama hashchange e abre a secção certa
-  });
-});
+    window.addEventListener("hashchange", () => {
+      showSection(getActiveKey());
+    });
 
+    document.querySelectorAll("#menuList a").forEach(a => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const s = a.getAttribute("data-section");
+        if (!s) return;
+        history.replaceState(null, "", `#${s}`);
+        showSection(s);
+      });
+    });
 
     $("btnExportJson")?.addEventListener("click", exportJSON);
     $("btnImportJson")?.addEventListener("click", importJSON);
@@ -1312,6 +1406,7 @@
     // Stocks
     $("stAdd")?.addEventListener("click", () => upsertStock({
       ticker: $("stTicker")?.value,
+      sector: $("stSector")?.value, // ✅
       qty: $("stQty")?.value,
       avg: $("stAvg")?.value,
       cur: $("stCur")?.value
@@ -1364,8 +1459,7 @@
 
     // 🔄 re-render quando dados mudam
     window.addEventListener("ras:data-updated", () => {
-      renderAll();
-      showSection(readHash());
+      showSection(getActiveKey());
     });
   }
 
@@ -1390,11 +1484,10 @@
       localStorage.setItem(STORAGE.history, JSON.stringify(hist));
     }
 
-    // ✅ API global para módulos (vendas.js / futuro)
+    // API global (mantém simples e leve)
     window.RAS = window.RAS || {};
     window.RAS.refresh = () => {
-      renderAll();
-      showSection(readHash());
+      showSection(getActiveKey());
     };
     window.RAS.history = window.RAS.history || {};
     window.RAS.history.snapshot = historySnapshot;
@@ -1405,7 +1498,7 @@
     bindHistoryUI();
 
     renderAll();
-    showSection(readHash());
+    showSection(getActiveKey());
   }
 
   document.addEventListener("DOMContentLoaded", init);

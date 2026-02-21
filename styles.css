@@ -1,46 +1,292 @@
-/* styles.css — V1 */
+/* styles.css — Rumo ao Sucesso (UI V2) — FINAL
+   Objetivos:
+   - Sidebar SEM scroll interno e sem “encavalitar”
+   - Menu compacto (cabe do Património ao Histórico)
+   - Vendas/Realizações com melhor legibilidade
+   - Positivo/negativo: .ras-pos/.ras-neg + .ras-box-pos/.ras-box-neg
+*/
 
-#appShell {
-  min-height: 100vh;
+:root{
+  --ras-radius: 16px;
+  --ras-radius-sm: 12px;
+  --ras-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
+  --ras-border: 1px solid rgba(15, 23, 42, 0.08);
+
+  --ras-text: #0f172a;
+  --ras-muted: #475569;
+
+  --ras-blue: #0d6efd;
+  --ras-blue-soft: rgba(13,110,253,0.10);
+  --ras-blue-soft2: rgba(13,110,253,0.14);
+
+  --ras-success: #0f7a39;
+  --ras-danger: #b42318;
 }
 
-#sidebar {
-  width: 260px;
+html, body { height: 100%; }
+
+body.bg-body-tertiary{
+  background: #f6f7fb !important;
+  color: var(--ras-text);
+}
+
+/* ---------- Cards / borders base ---------- */
+.card{
+  border-radius: var(--ras-radius);
+  border: var(--ras-border);
+  box-shadow: var(--ras-shadow);
+}
+
+.border.rounded,
+.border.rounded-3,
+.border.rounded-4{
+  border: var(--ras-border) !important;
+  border-radius: var(--ras-radius-sm) !important;
+}
+
+.table-responsive.bg-white.border.rounded{
+  border-radius: var(--ras-radius) !important;
+}
+
+/* ---------- Sidebar (FIX) ---------- */
+/* ✅ regra: a sidebar NUNCA tem scroll interno; se não couber, o body faz scroll */
+aside .card{
+  position: sticky;
+  top: 12px;
+
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important; /* ✅ nada de cortar / scroll interno */
+}
+
+aside .card-body{
   display: flex;
   flex-direction: column;
+  gap: 10px;
+
+  padding: 12px;     /* compacta para caber */
+  overflow: visible !important;
+  min-height: 0;
 }
 
-.nav-link.ras-nav {
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  color: #111;
+/* HR mais curto para não “comer” altura */
+aside hr.my-3{
+  margin: 8px 0 !important;
 }
 
-.nav-link.ras-nav.active {
-  background: #0d6efd;
-  color: #fff;
+/* topo do menu */
+#btnToggleMenu{
+  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
 }
 
-.nav-link.ras-nav.disabled {
-  opacity: 0.45;
+/* menu (compacto e sem “riscos”) */
+#menuList{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: visible !important;
 }
 
-.ras-section {
+/* mata pseudo-elementos que possam “riscar” */
+#menuList::before,
+#menuList::after,
+#menuList .list-group-item::before,
+#menuList .list-group-item::after{
+  content: none !important;
+  display: none !important;
+}
+
+/* mata text-decoration em tudo dentro do menu */
+#menuList a,
+#menuList a *{
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+}
+
+/* itens do menu: MAIS compactos (é aqui que ganhas espaço) */
+#menuList .list-group-item{
+  border: 0 !important;
+  border-radius: 12px !important;
+
+  padding: 8px 10px !important;     /* ✅ menos padding */
+  font-weight: 800;
+  font-size: 0.92rem;               /* ✅ ligeiramente menor */
+  color: #111827 !important;
+  background: transparent !important;
+
+  line-height: 1.12 !important;     /* ✅ mais compacto */
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  flex: 0 0 auto;                   /* ✅ não encolhe nem “amassa” */
+}
+
+#menuList .list-group-item:hover{
+  background: rgba(13,110,253,0.08) !important;
+}
+
+#menuList .list-group-item.active{
+  background: var(--ras-blue-soft2) !important;
+  color: var(--ras-blue) !important;
+  border: 1px solid rgba(13,110,253,0.35) !important;
+}
+
+/* disabled sem risco */
+#menuList .list-group-item.disabled,
+#menuList .list-group-item[aria-disabled="true"]{
+  opacity: .55;
+}
+
+/* sessão (compacta) */
+#sessionBox{
+  border-radius: 14px;
+  padding: 10px !important;
+}
+
+#sessionBox button{
+  border-radius: 14px;
+}
+
+/* texto de ajuda no fim da sidebar: menos “alto” */
+aside .card-body .mt-3.small.text-secondary{
+  margin-top: 6px !important;
+  line-height: 1.2;
+}
+
+/* ---------- Main / Header ---------- */
+#pageTitle{
+  font-weight: 900;
+  letter-spacing: -0.2px;
+}
+
+/* “Atalhos rápidos” - botões consistentes */
+#btnExportJson, #btnImportJson, #btnLoadDemo, #btnWipeAll, #btnExportAll, #btnImportAll, #btnAddMovement{
+  border-radius: 999px;
+  padding-left: 14px;
+  padding-right: 14px;
+  font-weight: 800;
+}
+
+/* ---------- Inputs e botões ---------- */
+.form-control, .form-select{
+  border-radius: 14px;
+}
+
+.btn{
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+.btn.btn-sm{
+  border-radius: 999px;
+}
+
+/* ---------- Tabelas: mais “respiráveis” ---------- */
+.table th{
+  color: var(--ras-muted);
+  font-weight: 900;
+}
+
+.table td{
+  vertical-align: middle;
+}
+
+.table.table-sm > :not(caption) > * > *{
+  padding: .55rem .55rem;
+}
+
+/* ---------- Vendas / Realizações (FIX “tudo em cima”) ---------- */
+#sec-vendas .card.p-2,
+#sec-vendas .card.p-3{
+  border-radius: var(--ras-radius);
+}
+
+/* labels com espaço real */
+#sec-vendas .form-label.small.text-secondary{
+  margin-bottom: 6px !important;
+  display: block;
+  line-height: 1.2;
+}
+
+/* inputs mais altos para não “colar” */
+#sec-vendas .form-control,
+#sec-vendas .form-select{
+  height: 44px;
+}
+
+/* notas idem */
+#sec-vendas #tradeNotes{
+  height: 44px;
+}
+
+/* cabeçalhos e células alinhadas */
+#sec-vendas .table thead th{
+  white-space: nowrap;
+}
+
+#sec-vendas .table td,
+#sec-vendas .table th{
+  white-space: nowrap;
+}
+
+/* o form de vendas fica mais “separado” visualmente */
+#sec-vendas #tradeForm{
+  row-gap: 12px; /* mais ar entre linhas */
+}
+
+#sec-vendas #tradeForm .form-control,
+#sec-vendas #tradeForm .form-select{
+  box-shadow: none;
+}
+
+/* ---------- Cores automáticas (texto + caixas) ---------- */
+.ras-pos{
+  color: var(--ras-success) !important;
+  font-weight: 900 !important;
+}
+
+.ras-neg{
+  color: var(--ras-danger) !important;
+  font-weight: 900 !important;
+}
+
+.ras-box-pos{
+  background: rgba(15, 122, 57, 0.06) !important;
+  border-color: rgba(15, 122, 57, 0.25) !important;
+}
+
+.ras-box-neg{
+  background: rgba(180, 35, 24, 0.06) !important;
+  border-color: rgba(180, 35, 24, 0.25) !important;
+}
+
+/* ---------- Animação suave de secções ---------- */
+.dash-section{
   animation: rasFade 140ms ease-in;
 }
 
-@keyframes rasFade {
+@keyframes rasFade{
   from { opacity: 0.4; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* “gaveta/scroll” dentro das caixas */
-.ras-drawer {
-  border-radius: 12px;
-}
+/* ---------- Mobile ---------- */
+@media (max-width: 991.98px){
+  /* no mobile, sticky atrapalha */
+  aside .card{
+    position: static !important;
+    top: auto !important;
+  }
 
-.ras-table-scroll {
-  max-height: 320px;
-  overflow: auto;
+  /* no mobile pode quebrar (não corta) */
+  #menuList .list-group-item{
+    white-space: normal;
+  }
 }
