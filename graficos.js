@@ -1,4 +1,4 @@
-// graficos.js — Gráficos (V4) com Setores + Ledger (investimento novo)
+// graficos.js — Gráficos (V4.2) com Setores + Alocação + Dividendos + Fundos + Ledger + Vendas
 (function () {
   const PORT_KEY = "ras_data_v1";
   const HIST_KEY = "ras_history_v1";
@@ -66,7 +66,6 @@
     const h = safeJSON(HIST_KEY, null);
     if (!h || typeof h !== "object") return [];
 
-    // teu histórico é months: { "YYYY-MM": { snapshot... } }
     if (h.months && typeof h.months === "object") {
       const keys = Object.keys(h.months)
         .filter(k => /^\d{4}-\d{2}$/.test(k))
@@ -79,7 +78,6 @@
       });
     }
 
-    // fallback para outros formatos
     const candidates = [h.rows, h.list, h.items, h.snapshots, h.data, h.history];
     const arr = candidates.find(Array.isArray);
     if (!Array.isArray(arr)) return [];
@@ -117,8 +115,7 @@
       return { coin, qty, price, invest, currentValue: qty * price };
     });
 
-    // P2P no teu app.js é juros simples e final = calcP2PRow, mas aqui basta estimar:
-    // final ≈ amount + amount*(rate/100)*years (se years vazio, assume 1)
+    // P2P: estimativa simples (igual à lógica do app.js)
     const p2p = (port.p2p || []).map((p) => {
       const amount = num(p.amount);
       const rate = num(p.rate) / 100;
@@ -128,23 +125,25 @@
         years = ms > 0 ? ms / (365.25 * 24 * 3600 * 1000) : 0;
       }
       years = years > 0 ? years : 1;
+      const profitPerYear = amount * rate;
       const final = amount + (amount * rate * years);
-      return { amount, final };
+      return { amount, final, profitPerYear };
     });
 
+    // Fundos: converte taxa mensal -> anual efetiva
     const funds = (port.funds || []).map((f) => {
+      const platform = String(f.platform || "—");
       const amount = num(f.amount);
-      const rate = num(f.rate) / 100;
+      const r = num(f.rate) / 100;
       const freq = String(f.freq || "annual");
-      const annualRate = freq === "monthly" ? (Math.pow(1 + rate, 12) - 1) : rate;
+      const annualRate = freq === "monthly" ? (Math.pow(1 + r, 12) - 1) : r;
       const annualIncome = amount * annualRate;
       const monthlyIncome = annualIncome / 12;
-      return { platform: String(f.platform || "—"), amount, annualIncome, monthlyIncome };
+      return { platform, amount, annualIncome, monthlyIncome };
     });
 
     const stocksCurrent = stocks.reduce((a, x) => a + x.currentValue, 0);
     const cryptoCurrent = crypto.reduce((a, x) => a + x.currentValue, 0);
-    const p2pInvest = p2p.reduce((a, x) => a + x.amount, 0);
     const p2pFinal = p2p.reduce((a, x) => a + x.final, 0);
     const fundsTotal = funds.reduce((a, x) => a + x.amount, 0);
 
@@ -155,7 +154,7 @@
       banco,
       stocks,
       crypto,
-      p2pInvest,
+      p2p,
       p2pFinal,
       funds,
       fundsTotal,
@@ -163,6 +162,34 @@
       cryptoCurrent,
       patrimonioTotal
     };
+  }
+
+  // Dividendos: cruza dividends[] com stocks[] para qty
+  function calcDividends(port) {
+    const stocks = Array.isArray(port?.stocks) ? port.stocks : [];
+    const divs = Array.isArray(port?.dividends) ? port.dividends : [];
+
+    const qtyByTicker = new Map();
+    for (const s of stocks) {
+      const t = String(s.ticker || "").toUpperCase().trim();
+      if (!t) continue;
+      qtyByTicker.set(t, num(s.qty));
+    }
+
+    const byTicker = new Map();
+    for (const d of divs) {
+      const t = String(d.ticker || "").toUpperCase().trim();
+      if (!t) continue;
+      const qty = num(qtyByTicker.get(t) || 0);
+      const yearPerShare = num(d.yearPerShare);
+      const year = qty * yearPerShare;
+      byTicker.set(t, (byTicker.get(t) || 0) + year);
+    }
+
+    const totalYear = Array.from(byTicker.values()).reduce((a, v) => a + num(v), 0);
+    const totalMonth = totalYear / 12;
+
+    return { byTicker, totalYear, totalMonth };
   }
 
   function calcSalesByMonth(salesList) {
@@ -244,7 +271,7 @@
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
               <h5 class="mb-0">Gráficos</h5>
-              <div class="text-secondary small">Setores + alocação + vendas + investimento novo</div>
+              <div class="text-secondary small">Alocação + Top holdings + Setores + Rendimentos</div>
             </div>
 
             <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -285,7 +312,7 @@
 
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
-                <div class="fw-semibold">Ações — Top tickers (valor atual)</div>
+                <div class="fw-semibold">Top holdings — Ações (valor atual)</div>
                 <div style="height:280px; margin-top:10px;">
                   <canvas id="gxChartStocks"></canvas>
                 </div>
@@ -313,19 +340,30 @@
 
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
-                <div class="fw-semibold">Investimento novo (net flow) — por mês</div>
-                <div class="text-secondary small">Entradas − Saídas (Movimentos)</div>
+                <div class="fw-semibold">Dividendos — por empresa (€/ano)</div>
+                <div class="text-secondary small" id="gxDivHint"></div>
                 <div style="height:280px; margin-top:10px;">
-                  <canvas id="gxChartFlowMonth"></canvas>
+                  <canvas id="gxChartDivTickers"></canvas>
                 </div>
               </div>
             </div>
 
-            <div class="col-12">
+            <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
-                <div class="fw-semibold">Investimento novo (net flow) — por ano</div>
-                <div style="height:260px; margin-top:10px;">
-                  <canvas id="gxChartFlowYear"></canvas>
+                <div class="fw-semibold">Fundos parados — juros por plataforma (€/ano)</div>
+                <div class="text-secondary small" id="gxFundsHint"></div>
+                <div style="height:280px; margin-top:10px;">
+                  <canvas id="gxChartFundsIncome"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+              <div class="bg-white border rounded p-3">
+                <div class="fw-semibold">Investimento novo (net flow) — por mês</div>
+                <div class="text-secondary small">Entradas − Saídas (Movimentos)</div>
+                <div style="height:280px; margin-top:10px;">
+                  <canvas id="gxChartFlowMonth"></canvas>
                 </div>
               </div>
             </div>
@@ -411,11 +449,18 @@
       const histAll = getHistoryRows();
       const ledger = getLedger();
       const cur = calcCurrent(port);
+      const div = calcDividends(port);
 
       const hint = $("gxHint");
-      if (hint) {
-        hint.textContent = `Património atual: ${euro(cur.patrimonioTotal)}`;
-      }
+      if (hint) hint.textContent = `Património atual: ${euro(cur.patrimonioTotal)}`;
+
+      const divHint = $("gxDivHint");
+      if (divHint) divHint.textContent = `Total: ${euro(div.totalYear)}/ano • ${euro(div.totalMonth)}/mês`;
+
+      const fundsYear = cur.funds.reduce((a, x) => a + num(x.annualIncome), 0);
+      const fundsMonth = fundsYear / 12;
+      const fundsHint = $("gxFundsHint");
+      if (fundsHint) fundsHint.textContent = `Total: ${euro(fundsYear)}/ano • ${euro(fundsMonth)}/mês`;
 
       destroyCharts();
 
@@ -429,7 +474,11 @@
             labels: hist.map(x => x.month),
             datasets: [{ label: "Património total", data: hist.map(x => x.patrimonioTotal), tension: 0.25 }]
           },
-          options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (v) => euro(v) } } } }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { ticks: { callback: (v) => euro(v) } } }
+          }
         }));
       }
 
@@ -476,7 +525,6 @@
           (s) => s.sector || "Sem setor",
           (s) => s.currentValue
         );
-
         const packed = topNWithOthersFromMap(sectorMap, 10, "OUTROS");
         charts.push(new Chart(ctxSectors, {
           type: "doughnut",
@@ -485,13 +533,35 @@
         }));
       }
 
-      // 6) Net flow por mês (ledger)
+      // 6) Dividendos por ticker (€/ano) — Top 12 + OUTROS
+      const ctxDiv = $("gxChartDivTickers")?.getContext("2d");
+      if (ctxDiv) {
+        const packed = topNWithOthersFromMap(div.byTicker, 12, "OUTROS");
+        charts.push(new Chart(ctxDiv, {
+          type: "bar",
+          data: { labels: packed.labels, datasets: [{ label: "Dividendos (€/ano)", data: packed.values }] },
+          options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (v) => euro(v) } } } }
+        }));
+      }
+
+      // 7) Fundos parados — juros por plataforma (€/ano) — Top 10 + OUTROS
+      const ctxFunds = $("gxChartFundsIncome")?.getContext("2d");
+      if (ctxFunds) {
+        const map = groupSum(cur.funds, (f) => f.platform || "—", (f) => f.annualIncome);
+        const packed = topNWithOthersFromMap(map, 10, "OUTROS");
+        charts.push(new Chart(ctxFunds, {
+          type: "bar",
+          data: { labels: packed.labels, datasets: [{ label: "Juros (€/ano)", data: packed.values }] },
+          options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (v) => euro(v) } } } }
+        }));
+      }
+
+      // 8) Net flow por mês (ledger)
       const ctxFlowM = $("gxChartFlowMonth")?.getContext("2d");
       if (ctxFlowM) {
         const mapM = calcLedgerByMonth(ledger);
         const months = monthsBackList(rangeN);
         const series = months.map(m => num(mapM.get(m) || 0));
-
         charts.push(new Chart(ctxFlowM, {
           type: "bar",
           data: { labels: months, datasets: [{ label: "Net flow (mês)", data: series }] },
@@ -499,27 +569,12 @@
         }));
       }
 
-      // 7) Net flow por ano (ledger)
-      const ctxFlowY = $("gxChartFlowYear")?.getContext("2d");
-      if (ctxFlowY) {
-        const mapY = calcLedgerByYear(ledger);
-        const years = yearsBackList(6);
-        const series = years.map(y => num(mapY.get(y) || 0));
-
-        charts.push(new Chart(ctxFlowY, {
-          type: "bar",
-          data: { labels: years, datasets: [{ label: "Net flow (ano)", data: series }] },
-          options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (v) => euro(v) } } } }
-        }));
-      }
-
-      // 8) Vendas: lucro por mês
+      // 9) Vendas: lucro por mês
       const ctxSales = $("gxChartSales")?.getContext("2d");
       if (ctxSales) {
         const profitByMonth = calcSalesByMonth((sales && sales.list) ? sales.list : []);
         const months = monthsBackList(rangeN);
         const series = months.map(m => num(profitByMonth.get(m) || 0));
-
         charts.push(new Chart(ctxSales, {
           type: "bar",
           data: { labels: months, datasets: [{ label: "Lucro realizado (mês)", data: series }] },
@@ -554,6 +609,6 @@
   window.addEventListener("hashchange", () => renderCharts());
   document.addEventListener("DOMContentLoaded", () => {
     bindMenuHooks();
-    renderCharts(); // se abrir diretamente em #graficos
+    renderCharts();
   });
 })();

@@ -8,54 +8,47 @@
   <!-- Bootstrap 5 (CDN) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
-
-  <!-- Layout + Sidebar toggle -->
-  <style>
-    /* Desktop: sidebar sticky */
-    @media (min-width: 992px) {
-      #sidebarWrap { position: sticky; top: 12px; height: calc(100vh - 24px); }
-      #sidebarCard { height: 100%; }
-      #menuList { overflow: auto; max-height: calc(100vh - 310px); }
-    }
-
-    /* Estado colapsado (mobile + desktop) */
-    body.sidebar-collapsed #menuList,
-    body.sidebar-collapsed #sessionBox,
-    body.sidebar-collapsed .sidebar-hint,
-    body.sidebar-collapsed .sidebar-divider {
-      display: none !important;
-    }
-
-    /* Desktop colapsado: sidebar fica estreita */
-    @media (min-width: 992px) {
-      body.sidebar-collapsed #sidebarCol {
-        flex: 0 0 76px !important;
-        max-width: 76px !important;
-      }
-      body.sidebar-collapsed #mainCol {
-        flex: 1 0 0 !important;
-        max-width: calc(100% - 76px) !important;
-      }
-      body.sidebar-collapsed .sidebar-title,
-      body.sidebar-collapsed .sidebar-subtitle {
-        display: none !important;
-      }
-      body.sidebar-collapsed #menuList a {
-        text-align: center;
-        padding-left: .25rem !important;
-        padding-right: .25rem !important;
-        font-size: .78rem;
-      }
-    }
-  </style>
 </head>
 
 <body class="bg-body-tertiary">
+
+  <!-- TOPBAR (mobile) -->
+  <header class="ras-topbar d-lg-none">
+    <button class="btn btn-dark ras-burger" type="button"
+      data-bs-toggle="offcanvas" data-bs-target="#rasOffcanvas" aria-controls="rasOffcanvas"
+      aria-label="Abrir menu">
+      ☰
+    </button>
+    <div class="ras-topbar-title">Portefólio</div>
+    <div class="ras-topbar-spacer"></div>
+  </header>
+
+  <!-- OFFCANVAS (mobile menu) -->
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="rasOffcanvas" aria-labelledby="rasOffcanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="rasOffcanvasLabel">Menu</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+      <nav class="list-group" id="rasNavMobile">
+      <a class="list-group-item list-group-item-action" href="#sec-patrimonio" data-section="patrimonio">Património Líquido</a>
+      <a class="list-group-item list-group-item-action" href="#sec-acoes" data-section="acoes">Ações + Dividendos</a>
+      <a class="list-group-item list-group-item-action" href="#sec-cripto" data-section="cripto">Cripto</a>
+      <a class="list-group-item list-group-item-action" href="#sec-p2p" data-section="p2p">P2P</a>
+      <a class="list-group-item list-group-item-action" href="#sec-fundos" data-section="fundos">Fundos Parados</a>
+     <a class="list-group-item list-group-item-action" href="#sec-vendas" data-section="vendas">Vendas / Realizações</a>
+     <a class="list-group-item list-group-item-action" href="#sec-graficos" data-section="graficos">Gráficos</a>
+     <a class="list-group-item list-group-item-action" href="#sec-ledger" data-section="movimentos">Movimentos</a>
+     <a class="list-group-item list-group-item-action" href="#sec-historico" data-section="historico">Histórico</a>
+    </nav>
+    </div>
+  </div>
+
   <div class="container-fluid py-3">
     <div class="row g-3 align-items-start">
 
-      <!-- SIDEBAR -->
-      <aside id="sidebarCol" class="col-12 col-lg-3 col-xl-2">
+      <!-- SIDEBAR (desktop only) -->
+      <aside id="sidebarCol" class="col-12 col-lg-3 col-xl-2 d-none d-lg-block">
         <div id="sidebarWrap">
           <div id="sidebarCard" class="card shadow-sm">
             <div class="card-body">
@@ -70,15 +63,15 @@
               <hr class="my-3 sidebar-divider"/>
 
               <nav id="menuList" class="list-group">
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#patrimonio" data-section="patrimonio">Património Líquido</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#acoes" data-section="acoes">Ações + Dividendos</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#cripto" data-section="cripto">Cripto</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#p2p" data-section="p2p">P2P</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#fundos" data-section="fundos">Fundos Parados</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#vendas" data-section="vendas">Vendas / Realizações</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#graficos" data-section="graficos">Gráficos</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#movimentos" data-section="movimentos">Movimentos</a>
-                <a class="list-group-item list-group-item-action" href="./dashboard.html#historico" data-section="historico">Histórico</a>
+                <a class="list-group-item list-group-item-action" href="#sec-patrimonio" data-section="patrimonio">Património Líquido</a>
+                <a class="list-group-item list-group-item-action" href="#sec-acoes" data-section="acoes">Ações + Dividendos</a>
+                <a class="list-group-item list-group-item-action" href="#sec-cripto" data-section="cripto">Cripto</a>
+                <a class="list-group-item list-group-item-action" href="#sec-p2p" data-section="p2p">P2P</a>
+                <a class="list-group-item list-group-item-action" href="#sec-fundos" data-section="fundos">Fundos Parados</a>
+                <a class="list-group-item list-group-item-action" href="#sec-vendas" data-section="vendas">Vendas / Realizações</a>
+                <a class="list-group-item list-group-item-action" href="#sec-graficos" data-section="graficos">Gráficos</a>
+                <a class="list-group-item list-group-item-action" href="#sec-ledger" data-section="movimentos">Movimentos</a>
+                <a class="list-group-item list-group-item-action" href="#sec-historico" data-section="historico">Histórico</a>
               </nav>
 
               <hr class="my-3 sidebar-divider"/>
@@ -115,29 +108,28 @@
         </div>
 
         <!-- TOP ACTIONS (colapsável) -->
-<div class="card shadow-sm mb-3" id="quickActionsCard">
-  <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
-    <div class="d-flex align-items-center gap-2">
-      <button class="btn btn-outline-secondary btn-sm" id="btnToggleQuickActions" type="button" aria-expanded="false">
-        ☰
-      </button>
-      <div class="fw-semibold">Atalhos rápidos</div>
-    </div>
+        <div class="card shadow-sm mb-3" id="quickActionsCard">
+          <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-outline-secondary btn-sm" id="btnToggleQuickActions" type="button" aria-expanded="false">
+                ☰
+              </button>
+              <div class="fw-semibold">Atalhos rápidos</div>
+            </div>
 
-    <div id="quickActionsBody" class="ras-collapse">
-      <div class="d-flex flex-wrap gap-2 justify-content-end">
-        <button class="btn btn-primary btn-sm" id="btnAddMovement">Adicionar movimento (em breve)</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnExportJson">Exportar JSON</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnImportJson">Importar JSON</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnLoadDemo">Carregar Demo</button>
-        <button class="btn btn-outline-danger btn-sm" id="btnWipeAll">Limpar dados</button>
-        <button class="btn btn-outline-primary btn-sm" id="btnExportAll">Backup TOTAL</button>
-        <button class="btn btn-outline-primary btn-sm" id="btnImportAll">Restaurar TOTAL</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+            <div id="quickActionsBody" class="ras-collapse">
+              <div class="d-flex flex-wrap gap-2 justify-content-end">
+                <button class="btn btn-primary btn-sm" id="btnAddMovement">Adicionar movimento (em breve)</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btnExportJson">Exportar JSON</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btnImportJson">Importar JSON</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btnLoadDemo">Carregar Demo</button>
+                <button class="btn btn-outline-danger btn-sm" id="btnWipeAll">Limpar dados</button>
+                <button class="btn btn-outline-primary btn-sm" id="btnExportAll">Backup TOTAL</button>
+                <button class="btn btn-outline-primary btn-sm" id="btnImportAll">Restaurar TOTAL</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <!-- SECTION: PATRIMONIO -->
         <section id="sec-patrimonio" class="dash-section">
           <div class="card shadow-sm mb-3">
@@ -1053,13 +1045,15 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <script src="./app.js"></script>
-  <script src="./vendas.js"></script>
-  <script src="./ledger.js"></script>
-  <script src="./graficos.js"></script>
-  <script src="./ui.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script src="./app.js"></script>
+<script src="./vendas.js"></script>
+<script src="./ledger.js"></script>
+<script src="./graficos.js"></script>
+<script src="./ui.js"></script>
 
   <!-- Toggle sidebar (sem depender do app.js) -->
   <script>

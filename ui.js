@@ -2,6 +2,8 @@
    - KPIs: pinta texto + caixa do KPI
    - Tabelas: pinta apenas texto (Lucro, %, Líquido)
    - Auto-recolor: menu clicks + hashchange + ras:data-updated + MutationObserver
+   - Quick Actions: colapsável (por defeito fechado)
+   - Mobile: Offcanvas fecha ao clicar num link do menu
 */
 
 (function () {
@@ -111,29 +113,16 @@
 
   function colorAllTables() {
     // Ações: Lucro idx 5, % idx 6
-    colorTableCells("stTable", [
-      { idx: 5 },
-      { idx: 6 }
-    ]);
+    colorTableCells("stTable", [{ idx: 5 }, { idx: 6 }]);
 
     // Cripto: Lucro idx 5, % idx 6
-    colorTableCells("crTable", [
-      { idx: 5 },
-      { idx: 6 }
-    ]);
+    colorTableCells("crTable", [{ idx: 5 }, { idx: 6 }]);
 
     // P2P: Lucro idx 6, % idx 7
-    colorTableCells("p2Table", [
-      { idx: 6 },
-      { idx: 7 }
-    ]);
+    colorTableCells("p2Table", [{ idx: 6 }, { idx: 7 }]);
 
     // Vendas: Lucro idx 8, % idx 9, Líquido idx 12
-    colorTableCells("tradesTbody", [
-      { idx: 8 },   // Lucro
-      { idx: 9 },   // %
-      { idx: 12 }   // Líquido
-    ]);
+    colorTableCells("tradesTbody", [{ idx: 8 }, { idx: 9 }, { idx: 12 }]);
   }
 
   // -------------------------
@@ -167,58 +156,38 @@
     // 3) popstate (back/forward)
     window.addEventListener("popstate", scheduleRecolor);
 
-    // 4) clique no menu (isto resolve o teu caso porque usas replaceState + showSection)
+    // 4) clique no menu desktop
     document.addEventListener("click", (e) => {
-      const a = e.target && e.target.closest ? e.target.closest("#menuList a[data-section]") : null;
-      if (!a) return;
-      // deixa o app trocar secção e depois pinta
-      setTimeout(scheduleRecolor, 0);
-    }, true);
+  const target = e.target;
+  if (!(target instanceof Element)) return;
+
+  const a = target.closest("#menuList a[data-section]");
+  if (!a) return;
+
+  setTimeout(scheduleRecolor, 0);
+}, true);
 
     // 5) MutationObserver: se alguma tabela/KPI for re-renderizada, repinta
-    const obs = new MutationObserver((mutList) => {
-      for (const m of mutList) {
-        if (m.type === "childList" || m.type === "characterData") {
-          scheduleRecolor();
-          break;
-        }
-      }
-    });
+    const obs = new MutationObserver(() => scheduleRecolor());
 
-    // observa só o MAIN para não gastar performance
-    const main = document.querySelector("main");
-    if (main) {
-      obs.observe(main, {
-        subtree: true,
-        childList: true,
-        characterData: true
-      });
-    } else {
-      // fallback
-      obs.observe(document.body, {
-        subtree: true,
-        childList: true,
-        characterData: true
-      });
-    }
+    // ✅ observa o main certo (teu HTML: <main id="mainCol"...>)
+    const main = document.getElementById("mainCol") || document.querySelector("main");
+    obs.observe(main || document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true
+    });
   }
 
-  // API manual (para debug)
-  window.RAS_UI = { recolor: scheduleRecolor };
-
-  document.addEventListener("DOMContentLoaded", () => {
-    bindAutoTriggers();
-    scheduleRecolor(); // 1ª pintura
-  });
-})();
-// --- Quick Actions: abre/fecha e por defeito fechado ---
-(function () {
+  // -------------------------
+  // Quick Actions (colapsável)
+  // -------------------------
   function initQuickActions() {
-    const btn = document.getElementById("btnToggleQuickActions");
-    const body = document.getElementById("quickActionsBody");
+    const btn = $("btnToggleQuickActions");
+    const body = $("quickActionsBody");
     if (!btn || !body) return;
 
-    // default: fechado (como queres)
+    // default: fechado
     body.classList.remove("is-open");
     btn.setAttribute("aria-expanded", "false");
 
@@ -228,5 +197,85 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", initQuickActions);
-})();
+ // -------------------------
+// Mobile Offcanvas: abre secção (mesmo mecanismo do desktop) + fecha
+// -------------------------
+function initMobileOffcanvasClose() {
+  const navMobile = document.getElementById("rasNavMobile");
+  const offcanvasEl = document.getElementById("rasOffcanvas");
+  if (!navMobile || !offcanvasEl) return;
+
+  navMobile.addEventListener("click", (e) => {
+    const target = e.target;
+    const a = (target && target.closest) ? target.closest("a") : null;
+    if (!a) return;
+
+    // 1) abre a secção usando o MESMO mecanismo do desktop
+    const key = a.getAttribute("data-section");
+    if (key) {
+      const desktopLink = document.querySelector(`#menuList a[data-section="${key}"]`);
+      if (desktopLink) {
+        e.preventDefault(); // evita só hash/scroll
+        desktopLink.click();
+      }
+    }
+
+    // 2) fecha o offcanvas
+    if (typeof bootstrap === "undefined" || !bootstrap.Offcanvas) return;
+    const instance =
+      bootstrap.Offcanvas.getInstance(offcanvasEl) || new bootstrap.Offcanvas(offcanvasEl);
+    instance.hide();
+  }, true);
+}
+
+function initSidebarCollapse() {
+  const btn = document.getElementById("btnToggleMenu");
+
+  // estado inicial (memória)
+  document.body.classList.toggle(
+    "sidebar-collapsed",
+    localStorage.getItem("ras_sidebar_collapsed") === "1"
+  );
+
+  function toggleSidebar(e) {
+    if (e) e.preventDefault();
+    const collapsedNow = document.body.classList.toggle("sidebar-collapsed");
+    localStorage.setItem("ras_sidebar_collapsed", collapsedNow ? "1" : "0");
+  }
+
+  // ✅ 1) Handler direto no botão (mais fiável)
+  if (btn) {
+    btn.addEventListener("click", toggleSidebar);
+  }
+
+  // ✅ 2) Salvaguarda por delegation (se o botão for re-renderizado)
+  document.addEventListener(
+    "click",
+    (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+
+      const b = target.closest("#btnToggleMenu");
+      if (!b) return;
+
+      toggleSidebar(e);
+    },
+    true
+  );
+}
+
+// API manual (debug)
+window.RAS_UI = { recolor: scheduleRecolor };
+
+// -------------------------
+// INIT único
+// -------------------------
+document.addEventListener("DOMContentLoaded", () => {
+  bindAutoTriggers();
+  initQuickActions();
+  initMobileOffcanvasClose();
+  initSidebarCollapse();
+  scheduleRecolor(); // 1ª pintura
+});
+
+})(); // ✅ FECHO do IIFE

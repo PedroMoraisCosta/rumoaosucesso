@@ -324,3 +324,123 @@ aside .card-body .mt-3.small.text-secondary{
   display: grid;
   place-items: center;
 }
+
+/* ---------- Desktop: Sidebar collapse (btnToggleMenu) ---------- */
+
+/* Sidebar sticky + altura (desktop) */
+@media (min-width: 992px) {
+  #sidebarWrap { position: sticky; top: 12px; height: calc(100vh - 24px); }
+  #sidebarCard { height: 100%; }
+}
+
+/* Estado colapsado: esconde partes internas */
+body.sidebar-collapsed #menuList,
+body.sidebar-collapsed #sessionBox,
+body.sidebar-collapsed .sidebar-hint,
+body.sidebar-collapsed .sidebar-divider{
+  display: none !important;
+}
+
+/* Desktop colapsado: coluna da sidebar fica estreita e main expande */
+@media (min-width: 992px) {
+  body.sidebar-collapsed #sidebarCol{
+    flex: 0 0 76px !important;
+    max-width: 76px !important;
+  }
+  body.sidebar-collapsed #mainCol{
+    flex: 1 0 0 !important;
+    max-width: calc(100% - 76px) !important;
+  }
+
+  body.sidebar-collapsed .sidebar-title,
+  body.sidebar-collapsed .sidebar-subtitle{
+    display: none !important;
+  }
+}
+/* ---------- MOBILE TOPBAR (Offcanvas trigger) ---------- */
+.ras-topbar{
+  position: sticky;
+  top: 0;
+  z-index: 1030; /* acima do conteúdo; abaixo do offcanvas */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #0f172a;
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.ras-burger{
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.ras-topbar-title{
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.ras-topbar-spacer{ flex: 1; }
+
+/* opcional: no mobile dá um respiro para o topo não ficar “colado” */
+@media (max-width: 991.98px){
+  .container-fluid.py-3{
+    padding-top: 12px !important;
+  }
+}
+
+/* ---------- Mobile: KPIs em grelha 2x2 (Património/Ações/Cripto/Fundos/Vendas) ---------- */
+@media (max-width: 575.98px){
+
+  /* KPIs (cards por col) – força 2 colunas */
+  #sec-patrimonio .row.g-3 > .col-12.col-md-3,
+  #sec-acoes .row.g-3.mb-3 > .col-12.col-md-3,
+  #sec-cripto .row.g-3.mb-3 > .col-12.col-md-3,
+  #sec-fundos .row.g-3 > .col-12.col-md-4,
+  #sec-vendas .row.g-3 > .col-12.col-md-4,
+  #sec-ledger .row.g-3 > .col-12.col-md-4{
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+
+  /* menos padding para caber melhor */
+  .border.rounded.p-3{
+    padding: 10px !important;
+  }
+
+  /* números ligeiramente menores (sem estragar desktop) */
+  .fs-3{ font-size: 1.35rem !important; }
+  .fs-4{ font-size: 1.25rem !important; }
+}
+
+/* ---------- Mobile: Quick Actions mais compacto ---------- */
+@media (max-width: 575.98px){
+  #quickActionsCard .card-body{
+    padding: 10px 12px !important;
+  }
+
+  /* reduz o “bloco vazio” quando fechado */
+  #quickActionsBody.ras-collapse{
+    max-height: 0 !important;
+  }
+  #quickActionsBody.ras-collapse.is-open{
+    max-height: 260px !important; /* abre suficiente quando precisas */
+  }
+}
+
+/* ---------- Mobile: tabelas grandes com scroll horizontal ---------- */
+@media (max-width: 991.98px){
+  .table-responsive{
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 14px;
+  }
+  .table-responsive table{
+    min-width: 600px; /* menos agressivo que 720 */
+  }
+}
