@@ -444,3 +444,196 @@ body.sidebar-collapsed .sidebar-divider{
     min-width: 600px; /* menos agressivo que 720 */
   }
 }
+
+/* ---------- Scroll offset (topbar não tapa títulos) ---------- */
+:root{ --ras-topbar-h: 56px; } /* ajusta se quiseres */
+
+.dash-section{
+  scroll-margin-top: calc(var(--ras-topbar-h) + 12px);
+}
+
+@media (min-width: 992px){
+  /* no desktop não precisas tanto offset */
+  .dash-section{ scroll-margin-top: 16px; }
+}
+
+/* ---------- Tema claro: mais profundidade + azul ---------- */
+:root{
+  --ras-bg: #f3f6ff;
+  --ras-card: #ffffff;
+  --ras-shadow2: 0 16px 45px rgba(2, 6, 23, 0.10);
+  --ras-border2: 1px solid rgba(30, 58, 138, 0.10);
+}
+
+body.bg-body-tertiary{
+  background: var(--ras-bg) !important;
+}
+
+/* cards mais “premium” */
+.card{
+  border: var(--ras-border2);
+  box-shadow: var(--ras-shadow2);
+}
+
+/* cabeçalhos/tabelas ligeiramente mais azuis */
+.table-light{
+  --bs-table-bg: rgba(13,110,253,0.06);
+}
+
+/* ---------- Dark mode (auto pelo sistema + manual com body.dark) ---------- */
+@media (prefers-color-scheme: dark){
+  body.bg-body-tertiary{ background: #0b1220 !important; color: #e5e7eb; }
+  .card{ background: #0f172a; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 18px 55px rgba(0,0,0,.35); }
+  .border.rounded, .border.rounded-3, .border.rounded-4{ border: 1px solid rgba(255,255,255,.10) !important; }
+  .text-secondary{ color: rgba(229,231,235,.70) !important; }
+  .bg-white{ background: #0f172a !important; }
+  .table{ color: #e5e7eb; }
+  .table-light{ --bs-table-bg: rgba(255,255,255,0.06); }
+  .form-control, .form-select{ background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,.10); }
+  .form-control::placeholder{ color: rgba(229,231,235,.45); }
+}
+
+/* manual override (se adicionares/removeres class "dark" no body) */
+body.dark.bg-body-tertiary{ background: #0b1220 !important; color: #e5e7eb; }
+body.dark .card{ background: #0f172a; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 18px 55px rgba(0,0,0,.35); }
+body.dark .border.rounded, body.dark .border.rounded-3, body.dark .border.rounded-4{ border: 1px solid rgba(255,255,255,.10) !important; }
+body.dark .text-secondary{ color: rgba(229,231,235,.70) !important; }
+body.dark .bg-white{ background: #0f172a !important; }
+body.dark .table{ color: #e5e7eb; }
+body.dark .table-light{ --bs-table-bg: rgba(255,255,255,0.06); }
+body.dark .form-control, body.dark .form-select{ background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,.10); }
+body.dark .form-control::placeholder{ color: rgba(229,231,235,.45); }
+
+/* Dark: melhora contraste de textos e headers */
+body.dark .text-secondary{
+  color: rgba(229,231,235,.78) !important;
+}
+body.dark .form-label{
+  color: rgba(229,231,235,.82) !important;
+}
+body.dark .table th{
+  color: rgba(229,231,235,.85) !important;
+}
+
+/* Dark: inputs mais legíveis e com foco visível */
+body.dark .form-control,
+body.dark .form-select{
+  background:#0a1326 !important;
+  border: 1px solid rgba(148,163,184,.20) !important;
+}
+
+body.dark .form-control:focus,
+body.dark .form-select:focus{
+  border-color: rgba(59,130,246,.65) !important;
+  box-shadow: 0 0 0 .20rem rgba(59,130,246,.15) !important;
+}
+
+/* Dark: item ativo da sidebar mais forte */
+body.dark #menuList .list-group-item.active{
+  background: rgba(59,130,246,.16) !important;
+  border: 1px solid rgba(59,130,246,.40) !important;
+  color: #93c5fd !important;
+}
+
+/* =========================
+   DARK MODE – CONTRASTE FIX (V3)
+   Cola no FIM do styles.css
+   ========================= */
+
+body.dark.bg-body-tertiary{
+  background: #0b1220 !important;  /* mantém fundo, mas vamos subir os cards */
+  color: rgba(229,231,235,.92) !important;
+}
+
+/* Cards/painéis mais claros (para não “afundar” tudo) */
+body.dark .card{
+  background: #111b2e !important; /* + claro que antes */
+  border: 1px solid rgba(148,163,184,.16) !important;
+  box-shadow: 0 18px 55px rgba(0,0,0,.35);
+}
+
+/* Blocos brancos (as caixas internas) ficam coerentes em dark */
+body.dark .bg-white{
+  background: #0f172a !important;
+}
+
+/* Texto normal e secundário – mais legível */
+body.dark,
+body.dark p,
+body.dark span,
+body.dark div{
+  color: rgba(229,231,235,.90);
+}
+
+body.dark .text-secondary{
+  color: rgba(229,231,235,.70) !important;
+}
+
+/* Títulos e labels (ex.: “Atalhos rápidos”, “Cripto”, etc.) */
+body.dark h1, body.dark h2, body.dark h3, body.dark h4, body.dark h5{
+  color: rgba(255,255,255,.92) !important;
+}
+
+body.dark .form-label{
+  color: rgba(229,231,235,.78) !important;
+}
+
+/* INPUTS – mais claros + foco visível */
+body.dark .form-control,
+body.dark .form-select{
+  background: #0b1428 !important;
+  color: rgba(229,231,235,.92) !important;
+  border: 1px solid rgba(148,163,184,.22) !important;
+}
+
+body.dark .form-control::placeholder{
+  color: rgba(229,231,235,.45) !important;
+}
+
+body.dark .form-control:focus,
+body.dark .form-select:focus{
+  border-color: rgba(59,130,246,.70) !important;
+  box-shadow: 0 0 0 .20rem rgba(59,130,246,.18) !important;
+}
+
+/* SIDEBAR – aqui está o teu maior problema */
+body.dark #sidebarCard{
+  background: #0f172a !important; /* sidebar um pouco mais escura que os cards */
+  border: 1px solid rgba(148,163,184,.16) !important;
+}
+
+body.dark .sidebar-title,
+body.dark .sidebar-subtitle,
+body.dark .sidebar-hint{
+  color: rgba(229,231,235,.80) !important;
+}
+
+/* Links do menu – legíveis mesmo quando NÃO estão ativos */
+body.dark #menuList .list-group-item{
+  color: rgba(229,231,235,.78) !important;
+  background: transparent !important;
+}
+
+body.dark #menuList .list-group-item:hover{
+  background: rgba(59,130,246,.10) !important;
+}
+
+/* Ativo – mais “produto” */
+body.dark #menuList .list-group-item.active{
+  background: rgba(59,130,246,.18) !important;
+  border: 1px solid rgba(59,130,246,.40) !important;
+  color: #cfe6ff !important;
+}
+
+/* Tabelas – header e texto não podem ficar apagados */
+body.dark .table{
+  color: rgba(229,231,235,.88) !important;
+}
+
+body.dark .table th{
+  color: rgba(229,231,235,.82) !important;
+}
+
+body.dark .table-light{
+  --bs-table-bg: rgba(255,255,255,0.06);
+}

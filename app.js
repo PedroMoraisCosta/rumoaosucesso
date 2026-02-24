@@ -482,143 +482,171 @@
   const SALES_KEY = "ras_vendas_v1";
 
   function exportBackupAll() {
-    try {
-      const dataRaw = localStorage.getItem(STORAGE.data);
-      const histRaw = localStorage.getItem(STORAGE.history);
-      const salesRaw = localStorage.getItem(SALES_KEY);
+  try {
+    const dataRaw = localStorage.getItem(STORAGE.data);
+    const histRaw = localStorage.getItem(STORAGE.history);
+    const salesRaw = localStorage.getItem(SALES_KEY);
 
-      const bundle = {
-        schema: "ras_backup_all_v1",
-        exportedAt: nowISO(),
-        app: "Rumo ao Sucesso",
-        payload: {
-          data: dataRaw ? JSON.parse(dataRaw) : structuredClone(DEFAULT_DATA),
-          history: histRaw ? JSON.parse(histRaw) : structuredClone(DEFAULT_HISTORY),
-          vendas: salesRaw ? JSON.parse(salesRaw) : { list: [], showTax: true, taxRate: 28 }
-        }
-      };
+    // ✅ inclui ledger + movements
+    const ledgerRaw = localStorage.getItem("ras_ledger_v1");
+    const movementsRaw = localStorage.getItem("ras_movements_v1");
 
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `rumo-ao-sucesso-backup-TOTAL-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+    const bundle = {
+      schema: "ras_backup_all_v2",
+      exportedAt: nowISO(),
+      app: "Rumo ao Sucesso",
+      payload: {
+        data: dataRaw ? JSON.parse(dataRaw) : structuredClone(DEFAULT_DATA),
+        history: histRaw ? JSON.parse(histRaw) : structuredClone(DEFAULT_HISTORY),
+        vendas: salesRaw ? JSON.parse(salesRaw) : { list: [], showTax: true, taxRate: 28 },
 
-      alert("Backup TOTAL exportado ✅");
-    } catch (e) {
-      console.error("[exportBackupAll] erro:", e);
-      alert("Falha ao exportar backup TOTAL.");
-    }
-  }
-
-  function importBackupAll() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-
-    input.onchange = async () => {
-      const file = input.files && input.files[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const obj = JSON.parse(text);
-
-        if (!obj || obj.schema !== "ras_backup_all_v1" || !obj.payload || typeof obj.payload !== "object") {
-          return alert("Este ficheiro não é um backup TOTAL válido (ras_backup_all_v1).");
-        }
-
-        const incomingData = obj.payload.data ?? structuredClone(DEFAULT_DATA);
-        const incomingHist = obj.payload.history ?? structuredClone(DEFAULT_HISTORY);
-        const incomingSales = obj.payload.vendas ?? { list: [], showTax: true, taxRate: 28 };
-
-        // MIGRAÇÃO: bancoCodeconnect -> bancoPessoal
-        if (incomingData?.patrimonio?.bancoCodeconnect != null && incomingData?.patrimonio?.bancoPessoal == null) {
-          incomingData.patrimonio.bancoPessoal = incomingData.patrimonio.bancoCodeconnect;
-          delete incomingData.patrimonio.bancoCodeconnect;
-        }
-
-        localStorage.setItem(STORAGE.data, JSON.stringify(mergeData(incomingData)));
-        localStorage.setItem(STORAGE.history, JSON.stringify({ ...structuredClone(DEFAULT_HISTORY), ...incomingHist }));
-        localStorage.setItem(SALES_KEY, JSON.stringify(incomingSales));
-
-        // ✅ UM refresh apenas (anti-lag / anti-loop)
-        window.dispatchEvent(new Event("ras:data-updated"));
-        alert("Backup TOTAL importado ✅");
-      } catch (e) {
-        console.error("[importBackupAll] erro:", e);
-        alert("Falha ao importar. JSON inválido ou corrompido.");
+        // ✅ novos
+        ledger: ledgerRaw ? JSON.parse(ledgerRaw) : [],
+        movements: movementsRaw ? JSON.parse(movementsRaw) : []
       }
     };
 
-    input.click();
-  }
-
-  function exportJSON() {
-    const data = getData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `rumo-ao-sucesso-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `rumo-ao-sucesso-backup-TOTAL-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+
+    alert("Backup TOTAL exportado ✅");
+  } catch (e) {
+    console.error("[exportBackupAll] erro:", e);
+    alert("Falha ao exportar backup TOTAL.");
   }
+}
 
-  function importJSON() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.onchange = async () => {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const obj = JSON.parse(text);
+function importBackupAll() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
 
-        // MIGRAÇÃO: bancoCodeconnect -> bancoPessoal
-        if (obj?.patrimonio?.bancoCodeconnect != null && obj?.patrimonio?.bancoPessoal == null) {
-          obj.patrimonio.bancoPessoal = obj.patrimonio.bancoCodeconnect;
-          delete obj.patrimonio.bancoCodeconnect;
-        }
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
 
-        setData(obj);
-        alert("Importado com sucesso ✅");
-      } catch {
-        alert("JSON inválido. Não foi possível importar.");
-      }
-    };
-    input.click();
-  }
-
-  async function loadDemo() {
     try {
-      const res = await fetch("./data/demo.json", { cache: "no-store" });
-      if (!res.ok) throw new Error("Falha a carregar demo.json");
-      const obj = await res.json();
+      const text = await file.text();
+      const obj = JSON.parse(text);
 
+      // ✅ Aceita Backup TOTAL v1 e v2
+      const schema = String(obj?.schema || "");
+      const isTotalBackup = (schema === "ras_backup_all_v1" || schema === "ras_backup_all_v2");
+
+      // v2 -> payload; v1 pode existir sem payload (ficamos robustos)
+      const p = (obj && typeof obj.payload === "object" && obj.payload) ? obj.payload : {};
+
+      // valida que tem conteúdo mínimo
+      const hasCore =
+        (p.data != null) || (p.history != null) || (p.vendas != null) || (p.ledger != null) || (p.movements != null);
+
+      if (!isTotalBackup || !hasCore) {
+        alert("Este ficheiro não é um backup TOTAL válido (ras_backup_all_v1/v2).");
+        return;
+      }
+
+      const incomingData = p.data ?? structuredClone(DEFAULT_DATA);
+      const incomingHist = p.history ?? structuredClone(DEFAULT_HISTORY);
+      const incomingSales = p.vendas ?? { list: [], showTax: true, taxRate: 28 };
+
+      // ✅ novos (se não existirem no ficheiro, ficam vazios)
+      const incomingLedger = p.ledger ?? [];
+      const incomingMovements = p.movements ?? [];
+
+      // MIGRAÇÃO: bancoCodeconnect -> bancoPessoal
+      if (incomingData?.patrimonio?.bancoCodeconnect != null && incomingData?.patrimonio?.bancoPessoal == null) {
+        incomingData.patrimonio.bancoPessoal = incomingData.patrimonio.bancoCodeconnect;
+        delete incomingData.patrimonio.bancoCodeconnect;
+      }
+
+      localStorage.setItem(STORAGE.data, JSON.stringify(mergeData(incomingData)));
+      localStorage.setItem(STORAGE.history, JSON.stringify({ ...structuredClone(DEFAULT_HISTORY), ...incomingHist }));
+      localStorage.setItem(SALES_KEY, JSON.stringify(incomingSales));
+
+      // ✅ repõe ledger + movements
+      localStorage.setItem("ras_ledger_v1", JSON.stringify(incomingLedger));
+      localStorage.setItem("ras_movements_v1", JSON.stringify(incomingMovements));
+
+      window.dispatchEvent(new Event("ras:data-updated"));
+      alert("Backup TOTAL importado ✅");
+      location.reload();
+    } catch (e) {
+      console.error("[importBackupAll] erro:", e);
+      alert("Falha ao importar. JSON inválido ou corrompido.");
+    }
+  };
+
+  input.click();
+}
+
+function exportJSON() {
+  const data = getData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rumo-ao-sucesso-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const obj = JSON.parse(text);
+
+      // MIGRAÇÃO: bancoCodeconnect -> bancoPessoal
       if (obj?.patrimonio?.bancoCodeconnect != null && obj?.patrimonio?.bancoPessoal == null) {
         obj.patrimonio.bancoPessoal = obj.patrimonio.bancoCodeconnect;
         delete obj.patrimonio.bancoCodeconnect;
       }
 
       setData(obj);
-      alert("Demo carregada ✅");
+      alert("Importado com sucesso ✅");
     } catch {
-      alert("Não consegui carregar ./data/demo.json. Confirma se existe na pasta /data.");
+      alert("JSON inválido. Não foi possível importar.");
     }
-  }
+  };
+  input.click();
+}
 
-  function wipeAllData() {
-    if (!confirmDanger("Tens a certeza que queres APAGAR todos os dados?")) return;
-    setData(structuredClone(DEFAULT_DATA));
+async function loadDemo() {
+  try {
+    const res = await fetch("./data/demo.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("Falha a carregar demo.json");
+    const obj = await res.json();
+
+    if (obj?.patrimonio?.bancoCodeconnect != null && obj?.patrimonio?.bancoPessoal == null) {
+      obj.patrimonio.bancoPessoal = obj.patrimonio.bancoCodeconnect;
+      delete obj.patrimonio.bancoCodeconnect;
+    }
+
+    setData(obj);
+    alert("Demo carregada ✅");
+  } catch {
+    alert("Não consegui carregar ./data/demo.json. Confirma se existe na pasta /data.");
   }
+}
+
+function wipeAllData() {
+  if (!confirmDanger("Tens a certeza que queres APAGAR todos os dados?")) return;
+  setData(structuredClone(DEFAULT_DATA));
+}
 
   // -----------------------
   // Calculators

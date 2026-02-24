@@ -264,6 +264,41 @@ function initSidebarCollapse() {
   );
 }
 
+function initThemeToggle() {
+  const KEY = "ras_theme_v1"; // "dark" | "light"
+
+  // 1) aplicar tema guardado ao carregar
+  const saved = localStorage.getItem(KEY);
+  if (saved === "dark") document.body.classList.add("dark");
+  if (saved === "light") document.body.classList.remove("dark");
+
+  // 2) atualizar ícones/texto
+  function syncButtons() {
+    const isDark = document.body.classList.contains("dark");
+    const b1 = document.getElementById("btnThemeToggle");        // mobile topbar
+    const b2 = document.getElementById("btnThemeToggleDesktop"); // desktop sidebar
+
+    if (b1) b1.textContent = isDark ? "☀️" : "🌙";
+    if (b2) b2.textContent = isDark ? "☀️ Modo claro" : "🌙 Modo escuro";
+  }
+
+  function toggle() {
+    const isDark = document.body.classList.toggle("dark");
+    localStorage.setItem(KEY, isDark ? "dark" : "light");
+    syncButtons();
+  }
+
+  // 3) ligar eventos (se existirem)
+  const btnMobile = document.getElementById("btnThemeToggle");
+  const btnDesk = document.getElementById("btnThemeToggleDesktop");
+
+  if (btnMobile) btnMobile.addEventListener("click", toggle);
+  if (btnDesk) btnDesk.addEventListener("click", toggle);
+
+  // 4) primeira sync
+  syncButtons();
+}
+
 // API manual (debug)
 window.RAS_UI = { recolor: scheduleRecolor };
 
@@ -275,6 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initQuickActions();
   initMobileOffcanvasClose();
   initSidebarCollapse();
+  initThemeToggle();      // ✅ FALTAVA ESTA LINHA
   scheduleRecolor(); // 1ª pintura
 });
 
