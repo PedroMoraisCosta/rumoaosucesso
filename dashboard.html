@@ -286,81 +286,85 @@
               </div>
 
               <div class="border rounded p-3 bg-white mb-3">
-  <div class="fw-semibold mb-2">Ações</div>
+                <div class="fw-semibold mb-2">Ações</div>
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Ticker</label>
+                    <input id="stTicker" class="form-control" placeholder="ex: META">
+                  </div>
 
-  <div class="row g-2 align-items-end">
-    <div class="col-12 col-md-3">
-      <label class="form-label">Ticker</label>
-      <input id="stTicker" class="form-control" placeholder="ex: META">
-    </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label">Setor</label>
+                    <select id="stSector" class="form-select">
+                      <option value="">—</option>
+                      <option value="Tecnologia">Tecnologia</option>
+                      <option value="Saúde">Saúde</option>
+                      <option value="Financeiro">Financeiro</option>
+                      <option value="Indústria">Indústria</option>
+                      <option value="Consumo">Consumo</option>
+                      <option value="Energia">Energia</option>
+                      <option value="Utilities">Utilities</option>
+                      <option value="Materiais">Materiais</option>
+                      <option value="Imobiliário">Imobiliário</option>
+                      <option value="Telecom">Telecom</option>
+                      <option value="ETF">ETF</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
 
-    <div class="col-12 col-md-3">
-      <label class="form-label">Setor</label>
-      <select id="stSector" class="form-select">
-        <option value="">—</option>
-        <option value="Tecnologia">Tecnologia</option>
-        <option value="Saúde">Saúde</option>
-        <option value="Financeiro">Financeiro</option>
-        <option value="Indústria">Indústria</option>
-        <option value="Consumo">Consumo</option>
-        <option value="Energia">Energia</option>
-        <option value="Utilities">Utilities</option>
-        <option value="Materiais">Materiais</option>
-        <option value="Imobiliário">Imobiliário</option>
-        <option value="Telecom">Telecom</option>
-        <option value="ETF">ETF</option>
-        <option value="Outro">Outro</option>
-      </select>
-    </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Nº ações</label>
+                    <input id="stQty" type="number" step="1" class="form-control" placeholder="ex: 3">
+                  </div>
 
-    <div class="col-12 col-md-2">
-      <label class="form-label">Nº ações</label>
-      <input id="stQty" type="number" step="0.000001" class="form-control" placeholder="ex: 2.2297">
-    </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Preço médio</label>
+                    <input id="stAvg" type="number" step="0.0001" class="form-control" placeholder="ex: 200">
+                  </div>
 
-    <div class="col-12 col-md-2">
-      <label class="form-label">Preço médio (USD) <span class="text-secondary small">(info)</span></label>
-      <input id="stAvg" type="number" step="0.0001" class="form-control" placeholder="ex: 652.85">
-    </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label">Preço atual</label>
+                    <input id="stCur" type="number" step="0.0001" class="form-control" placeholder="ex: 230">
+                  </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                  <button class="btn btn-primary" id="stAdd" type="button">Adicionar</button>
+                  <button class="btn btn-outline-secondary" id="stCancelEdit" type="button">Cancelar edição</button>
+                </div>
+              </div>
 
-    <div class="col-12 col-md-2">
-      <label class="form-label">Preço atual (USD) <span class="text-secondary small">(info)</span></label>
-      <input id="stCur" type="number" step="0.0001" class="form-control" placeholder="ex: 652.02">
-    </div>
-
-    <div class="col-12 col-md-3">
-      <label class="form-label">Investido (EUR) <span class="text-secondary small">(XTB)</span></label>
-      <input id="stInvestEUR" type="number" step="0.01" class="form-control" placeholder="ex: 1277.25">
-    </div>
-
-    <div class="col-12 col-md-3">
-      <label class="form-label">Valor atual (EUR) <span class="text-secondary small">(XTB)</span></label>
-      <input id="stCurrentEUR" type="number" step="0.01" class="form-control" placeholder="ex: 1225.09">
-    </div>
+             <div class="ras-cbox" data-cbox="stocks">
+  <div class="ras-cbox__head">
+    <h6 class="ras-cbox__title">Lista de Ações</h6>
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm ras-cbox__btn"
+      data-cbox-btn="stocks"
+      aria-expanded="false">
+      Expandir
+    </button>
   </div>
 
-  <div class="mt-2 d-flex gap-2">
-    <button class="btn btn-primary" id="stAdd" type="button">Adicionar</button>
-    <button class="btn btn-outline-secondary" id="stCancelEdit" type="button">Cancelar edição</button>
+  <div class="ras-cbox__body" data-cbox-body="stocks">
+    <div class="table-responsive bg-white border rounded">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Ticker</th>
+            <th class="text-end">Nº ações</th>
+            <th class="text-end">Preço médio</th>
+            <th class="text-end">Preço atual</th>
+            <th class="text-end">Investido</th>
+            <th class="text-end">Lucro</th>
+            <th class="text-end">%</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="stTable"></tbody>
+      </table>
+    </div>
   </div>
 </div>
-
-              <div class="table-responsive bg-white border rounded">
-                <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light">
-                  <tr>
-                <th>Ticker</th>
-                <th class="text-end">Nº ações</th>
-                <th class="text-end">Investido (EUR)</th>
-                <th class="text-end">Atual (EUR)</th>
-                <th class="text-end">Lucro (EUR)</th>
-                <th class="text-end">%</th>
-                <th class="text-end">Ações</th>
-                </tr>
-                </thead>
-                  <tbody id="stTable"></tbody>
-                </table>
-              </div>
 
               <hr class="my-4"/>
 

@@ -299,6 +299,68 @@ function initThemeToggle() {
   syncButtons();
 }
 
+// -------------------------
+// Collapsible Boxes (Ações / Dividendos / P2P / Cripto)
+// -------------------------
+function initCollapsibleBoxes() {
+  const KEY = "ras_cbox_v1";
+
+  function loadState() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function saveState(state) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+    } catch {}
+  }
+
+  function setOpen(id, open) {
+    const box = document.querySelector(`[data-cbox="${id}"]`);
+    const body = document.querySelector(`[data-cbox-body="${id}"]`);
+    const btn = document.querySelector(`[data-cbox-btn="${id}"]`);
+
+    if (!box || !body || !btn) return;
+
+    box.classList.toggle("is-open", !!open);
+    body.classList.toggle("is-open", !!open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.textContent = open ? "Recolher" : "Expandir";
+  }
+
+  const state = loadState();
+
+  document.querySelectorAll("[data-cbox]").forEach((box) => {
+    const id = box.getAttribute("data-cbox");
+    if (!id) return;
+    setOpen(id, !!state[id]);
+  });
+
+  document.addEventListener("click", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+
+    const btn = target.closest("[data-cbox-btn]");
+    if (!btn) return;
+
+    const id = btn.getAttribute("data-cbox-btn");
+    if (!id) return;
+
+    const box = document.querySelector(`[data-cbox="${id}"]`);
+    if (!box) return;
+
+    const nextOpen = !box.classList.contains("is-open");
+    const nextState = loadState();
+    nextState[id] = nextOpen;
+    saveState(nextState);
+    setOpen(id, nextOpen);
+  }, true);
+}
+
 // API manual (debug)
 window.RAS_UI = { recolor: scheduleRecolor };
 
@@ -310,8 +372,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initQuickActions();
   initMobileOffcanvasClose();
   initSidebarCollapse();
-  initThemeToggle();      // ✅ FALTAVA ESTA LINHA
-  scheduleRecolor(); // 1ª pintura
+  initThemeToggle();
+  initCollapsibleBoxes();
+  scheduleRecolor();
 });
 
 })(); // ✅ FECHO do IIFE

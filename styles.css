@@ -637,3 +637,43 @@ body.dark .table th{
 body.dark .table-light{
   --bs-table-bg: rgba(255,255,255,0.06);
 }
+
+/* =========================
+   Collapsible Boxes
+   ========================= */
+
+.ras-cbox {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 1rem;
+}
+
+.ras-cbox__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.ras-cbox__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ras-cbox__body {
+  display: none;
+  padding: 0.5rem;
+}
+
+.ras-cbox__body.is-open {
+  display: block;
+}
+
+/* altura máxima + scroll */
+.ras-cbox__body .table-responsive {
+  max-height: 340px;
+  overflow-y: auto;
+}
