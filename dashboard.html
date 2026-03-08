@@ -422,17 +422,18 @@
     <div class="table-responsive bg-white border rounded">
       <table class="table table-sm align-middle mb-0">
         <thead class="table-light">
-          <tr>
-            <th>Ticker</th>
-            <th class="text-end">Nº ações</th>
-            <th class="text-end">€/ano por ação</th>
-            <th class="text-end">Recebido/ano</th>
-            <th class="text-end">/mês</th>
-            <th class="text-end">/dia</th>
-            <th class="text-end">Por pagamento</th>
-            <th class="text-end">Ações</th>
-          </tr>
-        </thead>
+<tr>
+<th data-sort="ticker" class="ras-sort">Ticker</th>
+<th class="text-end">Nº ações</th>
+<th class="text-end">€/ano por ação</th>
+<th data-sort="yield" class="text-end ras-sort">Yield %</th>
+<th data-sort="year" class="text-end ras-sort">Recebido/ano</th>
+<th data-sort="month" class="text-end ras-sort">/mês</th>
+<th class="text-end">/dia</th>
+<th data-sort="pay" class="text-end ras-sort">Por pagamento</th>
+<th class="text-end">Ações</th>
+</tr>
+</thead>
         <tbody id="dvTable"></tbody>
       </table>
     </div>

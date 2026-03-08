@@ -369,6 +369,16 @@
             </div>
 
             <div class="col-12">
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">Rendimento passivo por mês</div>
+    <div class="text-secondary small">Dividendos + P2P + Fundos + Total</div>
+    <div style="height:280px; margin-top:10px;">
+      <canvas id="gxChartPassiveMonth"></canvas>
+    </div>
+  </div>
+</div>
+
+            <div class="col-12">
               <div class="bg-white border rounded p-3">
                 <div class="fw-semibold">Lucro realizado por mês (Vendas)</div>
                 <div style="height:260px; margin-top:10px;">
@@ -569,7 +579,48 @@
         }));
       }
 
-      // 9) Vendas: lucro por mês
+      // 9) Rendimento passivo por mês
+const ctxPassive = $("gxChartPassiveMonth")?.getContext("2d");
+if (ctxPassive) {
+  const months = monthsBackList(rangeN);
+
+  const divMonth = div.totalMonth;
+  const p2pMonth = cur.p2p.reduce((a, x) => a + num(x.profitPerYear), 0) / 12;
+  const fundsMonth = cur.funds.reduce((a, x) => a + num(x.monthlyIncome), 0);
+
+ const currentMonth = new Date().toISOString().slice(0, 7);
+
+const divSeries = months.map(m => m >= currentMonth ? divMonth : 0);
+const p2pSeries = months.map(m => m >= currentMonth ? p2pMonth : 0);
+const fundsSeries = months.map(m => m >= currentMonth ? fundsMonth : 0);
+const totalSeries = months.map(m => m >= currentMonth ? (divMonth + p2pMonth + fundsMonth) : 0);
+
+  charts.push(new Chart(ctxPassive, {
+    type: "bar",
+    data: {
+      labels: months,
+      datasets: [
+        { label: "Dividendos", data: divSeries },
+        { label: "P2P", data: p2pSeries },
+        { label: "Fundos", data: fundsSeries },
+        { label: "Total", data: totalSeries, type: "line", tension: 0.25 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          ticks: {
+            callback: (v) => euro(v)
+          }
+        }
+      }
+    }
+  }));
+}
+
+      // 10) Vendas: lucro por mês
       const ctxSales = $("gxChartSales")?.getContext("2d");
       if (ctxSales) {
         const profitByMonth = calcSalesByMonth((sales && sales.list) ? sales.list : []);

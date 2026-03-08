@@ -1100,10 +1100,69 @@ renderStocks();
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    for (const d of data.dividends) {
+    let list = [...data.dividends];
+
+if (window.__divSortKey) {
+
+  const key = window.__divSortKey;
+  const dir = window.__divSortDir || 1;
+
+  list.sort((a, b) => {
+
+    const data = getData();
+
+    const stA = data.stocks.find(s => s.ticker === a.ticker);
+    const stB = data.stocks.find(s => s.ticker === b.ticker);
+
+    const qtyA = stA ? safeNum(stA.qty) : 0;
+    const qtyB = stB ? safeNum(stB.qty) : 0;
+
+    let av = 0;
+    let bv = 0;
+
+    if (key === "ticker") {
+      return dir * a.ticker.localeCompare(b.ticker);
+    }
+
+    if (key === "yield") {
+
+  const priceA = stA ? safeNum(stA.cur) : 0;
+  const priceB = stB ? safeNum(stB.cur) : 0;
+
+  av = priceA > 0 ? (safeNum(a.yearPerShare) / priceA) * 100 : 0;
+  bv = priceB > 0 ? (safeNum(b.yearPerShare) / priceB) * 100 : 0;
+
+}
+
+    if (key === "year") {
+      av = qtyA * safeNum(a.yearPerShare);
+      bv = qtyB * safeNum(b.yearPerShare);
+    }
+
+    if (key === "month") {
+      av = (qtyA * safeNum(a.yearPerShare)) / 12;
+      bv = (qtyB * safeNum(b.yearPerShare)) / 12;
+    }
+
+    if (key === "pay") {
+      const payA = safeNum(a.payN) > 0 ? (qtyA * safeNum(a.yearPerShare)) / safeNum(a.payN) : 0;
+      const payB = safeNum(b.payN) > 0 ? (qtyB * safeNum(b.yearPerShare)) / safeNum(b.payN) : 0;
+
+      av = payA;
+      bv = payB;
+    }
+
+    return dir * (av - bv);
+  });
+
+}
+
+for (const d of list) {
       const stRow = data.stocks.find(s => s.ticker === d.ticker);
       const qty = stRow ? safeNum(stRow.qty) : 0;
       const yearPerShare = safeNum(d.yearPerShare);
+      const price = stRow ? safeNum(stRow.cur) : 0;
+      const yieldPct = price > 0 ? (yearPerShare / price) * 100 : 0;
       const receivedYear = qty * yearPerShare;
       const receivedMonth = receivedYear / 12;
       const receivedDay = receivedYear / 365.25;
@@ -1114,6 +1173,7 @@ renderStocks();
         <td class="fw-semibold">${escapeHtml(d.ticker)}</td>
         <td class="text-end">${qty}</td>
         <td class="text-end">${yearPerShare}</td>
+        <td class="text-end">${fmtPct(yieldPct)}</td>
         <td class="text-end">${fmtEUR(receivedYear)}</td>
         <td class="text-end">${fmtEUR(receivedMonth)}</td>
         <td class="text-end">${fmtEUR(receivedDay)}</td>
@@ -1154,6 +1214,32 @@ renderStocks();
     }
 
     updateDividendQtyAuto();
+    if (!window.__divSortBound) {
+
+  window.__divSortBound = true;
+
+  const headers = document.querySelectorAll('#sec-acoes .ras-cbox[data-cbox="dividends"] th[data-sort]');
+
+  headers.forEach(th => {
+
+    th.addEventListener("click", () => {
+
+      const key = th.dataset.sort;
+
+      if (window.__divSortKey === key) {
+        window.__divSortDir *= -1;
+      } else {
+        window.__divSortKey = key;
+        window.__divSortDir = 1;
+      }
+
+      renderDividends();
+
+    });
+
+  });
+
+}
   }
 
   function wipeDividendsAll() {
