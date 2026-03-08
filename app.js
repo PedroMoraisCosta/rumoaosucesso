@@ -863,7 +863,60 @@ function wipeAllData() {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    for (const x of data.stocks) {
+    let list = [...data.stocks];
+
+if (window.__stocksSortKey) {
+
+  const key = window.__stocksSortKey;
+  const dir = window.__stocksSortDir || 1;
+
+  list.sort((a, b) => {
+
+    let av = 0;
+    let bv = 0;
+
+    if (key === "ticker") {
+      return dir * a.ticker.localeCompare(b.ticker);
+    }
+
+    if (key === "qty") {
+      av = safeNum(a.qty);
+      bv = safeNum(b.qty);
+    }
+
+    if (key === "avg") {
+      av = safeNum(a.avg);
+      bv = safeNum(b.avg);
+    }
+
+    if (key === "cur") {
+      av = safeNum(a.cur);
+      bv = safeNum(b.cur);
+    }
+
+    if (key === "invested") {
+      av = safeNum(a.qty) * safeNum(a.avg);
+      bv = safeNum(b.qty) * safeNum(b.avg);
+    }
+
+    if (key === "profit") {
+      av = safeNum(a.qty) * safeNum(a.cur) - safeNum(a.qty) * safeNum(a.avg);
+      bv = safeNum(b.qty) * safeNum(b.cur) - safeNum(b.qty) * safeNum(b.avg);
+    }
+
+    if (key === "pct") {
+      const ai = safeNum(a.qty) * safeNum(a.avg);
+      const bi = safeNum(b.qty) * safeNum(b.avg);
+
+      av = ai > 0 ? ((safeNum(a.qty) * safeNum(a.cur) - ai) / ai) * 100 : 0;
+      bv = bi > 0 ? ((safeNum(b.qty) * safeNum(b.cur) - bi) / bi) * 100 : 0;
+    }
+
+    return dir * (av - bv);
+  });
+}
+
+for (const x of list) {
       const invested = safeNum(x.qty) * safeNum(x.avg);
       const current = safeNum(x.qty) * safeNum(x.cur);
       const profit = current - invested;
@@ -918,6 +971,57 @@ function wipeAllData() {
     }
 
     fillDividendTickerSelect();
+
+if (!window.__stocksSortBound) {
+
+  window.__stocksSortBound = true;
+
+  const headers = document.querySelectorAll("#sec-acoes th[data-sort]");
+
+  headers.forEach(th => {
+
+  th.classList.add("ras-sort");
+
+    th.style.cursor = "pointer";
+
+    th.addEventListener("click", () => {
+
+      const key = th.dataset.sort;
+
+      if (window.__stocksSortKey === key) {
+        window.__stocksSortDir *= -1;
+      } else {
+        window.__stocksSortKey = key;
+        window.__stocksSortDir = 1;
+      }
+
+      headers.forEach(h=>{
+  h.classList.remove("ras-sort-active-asc","ras-sort-active-desc");
+});
+
+if (window.__stocksSortDir === 1) {
+  th.classList.add("ras-sort-active-asc");
+} else {
+  th.classList.add("ras-sort-active-desc");
+}
+
+headers.forEach(h => {
+  h.classList.remove("ras-sort-active-asc", "ras-sort-active-desc");
+});
+
+if (window.__stocksSortDir === 1) {
+  th.classList.add("ras-sort-active-asc");
+} else {
+  th.classList.add("ras-sort-active-desc");
+}
+
+renderStocks();
+
+    });
+
+  });
+
+  }
   }
 
   function wipeStocksAll() {

@@ -677,3 +677,35 @@ body.dark .table-light{
   max-height: 340px;
   overflow-y: auto;
 }
+
+/* sortable columns */
+
+.ras-sort {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ras-sort:hover {
+  text-decoration: underline;
+}
+
+.ras-sort {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ras-sort::after {
+  content: " ⇅";
+  opacity: 0.35;
+  font-size: 0.8em;
+}
+
+.ras-sort-active-asc::after {
+  content: " ▲";
+  opacity: 1;
+}
+
+.ras-sort-active-desc::after {
+  content: " ▼";
+  opacity: 1;
+}
