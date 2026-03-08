@@ -403,26 +403,42 @@
                 </div>
               </div>
 
-              <div class="table-responsive bg-white border rounded">
-                <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Ticker</th>
-                      <th class="text-end">Nº ações</th>
-                      <th class="text-end">€/ano por ação</th>
-                      <th class="text-end">Recebido/ano</th>
-                      <th class="text-end">/mês</th>
-                      <th class="text-end">/dia</th>
-                      <th class="text-end">Por pagamento</th>
-                      <th class="text-end">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dvTable"></tbody>
-                </table>
-              </div>
+              <div class="ras-cbox" data-cbox="dividends">
 
-            </div>
-          </div>
+  <div class="ras-cbox__head">
+    <h6 class="ras-cbox__title">Lista de Dividendos</h6>
+
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm ras-cbox__btn"
+      data-cbox-btn="dividends"
+      aria-expanded="false">
+      Expandir
+    </button>
+  </div>
+
+  <div class="ras-cbox__body" data-cbox-body="dividends">
+
+    <div class="table-responsive bg-white border rounded">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Ticker</th>
+            <th class="text-end">Nº ações</th>
+            <th class="text-end">€/ano por ação</th>
+            <th class="text-end">Recebido/ano</th>
+            <th class="text-end">/mês</th>
+            <th class="text-end">/dia</th>
+            <th class="text-end">Por pagamento</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="dvTable"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
         </section>
 
         <!-- SECTION: CRIPTO -->
