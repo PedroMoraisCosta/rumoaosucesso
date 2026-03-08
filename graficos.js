@@ -329,6 +329,16 @@
             </div>
 
             <div class="col-12 col-xl-6">
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">P2P — Investido vs Valor final</div>
+    <div class="text-secondary small">Comparação por projeto</div>
+    <div style="height:280px; margin-top:10px;">
+      <canvas id="gxChartP2PProjects"></canvas>
+    </div>
+  </div>
+</div>
+
+            <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
                 <div class="fw-semibold">Ações — Setores (valor atual)</div>
                 <div class="text-secondary small">Usa o campo “Setor” em Ações.</div>
@@ -527,7 +537,53 @@
         }));
       }
 
-      // 5) Setores (doughnut)
+      // 5) P2P — Investido vs Valor final por projeto
+const ctxP2P = $("gxChartP2PProjects")?.getContext("2d");
+if (ctxP2P) {
+  const rows = (port.p2p || []).map((p) => {
+    const amount = num(p.amount);
+    const rate = num(p.rate) / 100;
+
+    let years = num(p.years);
+    if (!years && p.start && p.end) {
+      const ms = new Date(p.end).getTime() - new Date(p.start).getTime();
+      years = ms > 0 ? ms / (365.25 * 24 * 3600 * 1000) : 0;
+    }
+    years = years > 0 ? years : 1;
+
+    const final = amount + (amount * rate * years);
+
+    return {
+      label: `${String(p.project || "Projeto")} (${String(p.platform || "—")})`,
+      invested: amount,
+      final: final
+    };
+  }).filter(x => x.invested > 0 || x.final > 0);
+
+  charts.push(new Chart(ctxP2P, {
+    type: "bar",
+    data: {
+      labels: rows.map(x => x.label),
+      datasets: [
+        { label: "Investido", data: rows.map(x => x.invested) },
+        { label: "Valor final", data: rows.map(x => x.final) }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          ticks: {
+            callback: (v) => euro(v)
+          }
+        }
+      }
+    }
+  }));
+}
+
+      // 6) Setores (doughnut)
       const ctxSectors = $("gxChartSectors")?.getContext("2d");
       if (ctxSectors) {
         const sectorMap = groupSum(
@@ -543,7 +599,7 @@
         }));
       }
 
-      // 6) Dividendos por ticker (€/ano) — Top 12 + OUTROS
+      // 7) Dividendos por ticker (€/ano) — Top 12 + OUTROS
       const ctxDiv = $("gxChartDivTickers")?.getContext("2d");
       if (ctxDiv) {
         const packed = topNWithOthersFromMap(div.byTicker, 12, "OUTROS");
@@ -554,7 +610,7 @@
         }));
       }
 
-      // 7) Fundos parados — juros por plataforma (€/ano) — Top 10 + OUTROS
+      // 8) Fundos parados — juros por plataforma (€/ano) — Top 10 + OUTROS
       const ctxFunds = $("gxChartFundsIncome")?.getContext("2d");
       if (ctxFunds) {
         const map = groupSum(cur.funds, (f) => f.platform || "—", (f) => f.annualIncome);
@@ -566,7 +622,7 @@
         }));
       }
 
-      // 8) Net flow por mês (ledger)
+      // 9) Net flow por mês (ledger)
       const ctxFlowM = $("gxChartFlowMonth")?.getContext("2d");
       if (ctxFlowM) {
         const mapM = calcLedgerByMonth(ledger);
@@ -579,7 +635,7 @@
         }));
       }
 
-      // 9) Rendimento passivo por mês
+      // 10) Rendimento passivo por mês
 const ctxPassive = $("gxChartPassiveMonth")?.getContext("2d");
 if (ctxPassive) {
   const months = monthsBackList(rangeN);
@@ -620,7 +676,7 @@ const totalSeries = months.map(m => m >= currentMonth ? (divMonth + p2pMonth + f
   }));
 }
 
-      // 10) Vendas: lucro por mês
+      // 11) Vendas: lucro por mês
       const ctxSales = $("gxChartSales")?.getContext("2d");
       if (ctxSales) {
         const profitByMonth = calcSalesByMonth((sales && sales.list) ? sales.list : []);
