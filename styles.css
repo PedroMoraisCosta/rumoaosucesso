@@ -709,3 +709,22 @@ body.dark .table-light{
   content: " ▼";
   opacity: 1;
 }
+
+/* =========================
+   Gráficos com scroll horizontal
+   ========================= */
+
+.gx-chart-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gx-chart-scroll > div {
+  width: 100%;
+}
+
+.gx-chart-scroll canvas {
+  display: block;
+}

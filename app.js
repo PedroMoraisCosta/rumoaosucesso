@@ -1299,27 +1299,81 @@ for (const d of list) {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    for (const x of data.crypto) {
-      const current = safeNum(x.qty) * safeNum(x.price);
-      const profit = current - safeNum(x.invest);
-      const pct = safeNum(x.invest) > 0 ? (profit / safeNum(x.invest)) * 100 : 0;
+    let list = [...data.crypto];
 
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="fw-semibold">${escapeHtml(x.coin)}</td>
-        <td class="text-end">${fmtEUR(x.invest)}</td>
-        <td class="text-end">${safeNum(x.qty)}</td>
-        <td class="text-end">${safeNum(x.price)}</td>
-        <td class="text-end">${fmtEUR(current)}</td>
-        <td class="text-end">${fmtEUR(profit)}</td>
-        <td class="text-end">${fmtPct(pct)}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
+if (window.__crSortKey) {
+
+  const key = window.__crSortKey;
+  const dir = window.__crSortDir || 1;
+
+  list.sort((a, b) => {
+
+    let av = 0;
+    let bv = 0;
+
+    if (key === "coin") {
+      return dir * a.coin.localeCompare(b.coin);
     }
+
+    if (key === "invest") {
+      av = safeNum(a.invest);
+      bv = safeNum(b.invest);
+    }
+
+    if (key === "qty") {
+      av = safeNum(a.qty);
+      bv = safeNum(b.qty);
+    }
+
+    if (key === "price") {
+      av = safeNum(a.price);
+      bv = safeNum(b.price);
+    }
+
+    if (key === "current") {
+      av = safeNum(a.qty) * safeNum(a.price);
+      bv = safeNum(b.qty) * safeNum(b.price);
+    }
+
+    if (key === "profit") {
+      av = (safeNum(a.qty) * safeNum(a.price)) - safeNum(a.invest);
+      bv = (safeNum(b.qty) * safeNum(b.price)) - safeNum(b.invest);
+    }
+
+    if (key === "pct") {
+      const ai = safeNum(a.invest);
+      const bi = safeNum(b.invest);
+
+      av = ai > 0 ? (((safeNum(a.qty) * safeNum(a.price)) - ai) / ai) * 100 : 0;
+      bv = bi > 0 ? (((safeNum(b.qty) * safeNum(b.price)) - bi) / bi) * 100 : 0;
+    }
+
+    return dir * (av - bv);
+  });
+
+}
+
+for (const x of list) {
+  const current = safeNum(x.qty) * safeNum(x.price);
+  const profit = current - safeNum(x.invest);
+  const pct = safeNum(x.invest) > 0 ? (profit / safeNum(x.invest)) * 100 : 0;
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="fw-semibold">${escapeHtml(x.coin)}</td>
+    <td class="text-end">${fmtEUR(x.invest)}</td>
+    <td class="text-end">${safeNum(x.qty)}</td>
+    <td class="text-end">${safeNum(x.price)}</td>
+    <td class="text-end">${fmtEUR(current)}</td>
+    <td class="text-end">${fmtEUR(profit)}</td>
+    <td class="text-end">${fmtPct(pct)}</td>
+    <td class="text-end">
+      <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+      <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
 
     if (!tbody.__bound) {
       tbody.__bound = true;
@@ -1347,6 +1401,28 @@ for (const d of list) {
         }
       });
     }
+    if (!window.__crSortBound) {
+  window.__crSortBound = true;
+
+  const headers = document.querySelectorAll("#sec-cripto th[data-sort]");
+
+  headers.forEach(th => {
+    th.style.cursor = "pointer";
+
+    th.addEventListener("click", () => {
+      const key = th.dataset.sort;
+
+      if (window.__crSortKey === key) {
+        window.__crSortDir *= -1;
+      } else {
+        window.__crSortKey = key;
+        window.__crSortDir = 1;
+      }
+
+      renderCrypto();
+    });
+  });
+}
   }
 
   function wipeCryptoAll() {

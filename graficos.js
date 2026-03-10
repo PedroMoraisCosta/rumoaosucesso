@@ -311,13 +311,15 @@
             </div>
 
             <div class="col-12 col-xl-6">
-              <div class="bg-white border rounded p-3">
-                <div class="fw-semibold">Top holdings — Ações (valor atual)</div>
-                <div style="height:280px; margin-top:10px;">
-                  <canvas id="gxChartStocks"></canvas>
-                </div>
-              </div>
-            </div>
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">Top holdings — Ações (valor atual)</div>
+    <div class="gx-chart-scroll" style="margin-top:10px;">
+      <div style="height:280px; min-width:900px;">
+        <canvas id="gxChartStocks"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
@@ -349,14 +351,16 @@
             </div>
 
             <div class="col-12 col-xl-6">
-              <div class="bg-white border rounded p-3">
-                <div class="fw-semibold">Dividendos — por empresa (€/ano)</div>
-                <div class="text-secondary small" id="gxDivHint"></div>
-                <div style="height:280px; margin-top:10px;">
-                  <canvas id="gxChartDivTickers"></canvas>
-                </div>
-              </div>
-            </div>
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">Dividendos — por empresa (€/ano)</div>
+    <div class="text-secondary small" id="gxDivHint"></div>
+    <div class="gx-chart-scroll" style="margin-top:10px;">
+      <div style="height:280px; min-width:900px;">
+        <canvas id="gxChartDivTickers"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
