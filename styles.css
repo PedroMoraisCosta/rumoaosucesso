@@ -728,3 +728,29 @@ body.dark .table-light{
 .gx-chart-scroll canvas {
   display: block;
 }
+
+/* =========================
+   Gráficos — cabeçalho limpo
+   ========================= */
+
+.gx-graph-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.gx-graph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+}
+
+.gx-graph-head--stack {
+  align-items: flex-start;
+}
+
+.gx-head-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}

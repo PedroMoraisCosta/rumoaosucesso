@@ -311,8 +311,13 @@
             </div>
 
             <div class="col-12 col-xl-6">
-  <div class="bg-white border rounded p-3">
-    <div class="fw-semibold">Top holdings — Ações (valor atual)</div>
+  <div class="bg-white border rounded p-3 gx-graph-card">
+    <div class="gx-graph-head">
+      <div class="fw-semibold">Top holdings — Ações (valor atual)</div>
+      <button type="button" class="btn btn-outline-secondary btn-sm gx-head-btn" id="btnExpandStocksChart">
+        Expandir
+      </button>
+    </div>
     <div class="gx-chart-scroll" style="margin-top:10px;">
       <div style="height:280px; min-width:900px;">
         <canvas id="gxChartStocks"></canvas>
@@ -320,6 +325,7 @@
     </div>
   </div>
 </div>
+
 
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
@@ -349,11 +355,17 @@
                 </div>
               </div>
             </div>
-
-            <div class="col-12 col-xl-6">
-  <div class="bg-white border rounded p-3">
-    <div class="fw-semibold">Dividendos — por empresa (€/ano)</div>
-    <div class="text-secondary small" id="gxDivHint"></div>
+<div class="col-12 col-xl-6">
+  <div class="bg-white border rounded p-3 gx-graph-card">
+    <div class="gx-graph-head gx-graph-head--stack">
+      <div>
+        <div class="fw-semibold">Dividendos — por empresa (€/ano)</div>
+        <div class="text-secondary small" id="gxDivHint"></div>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm gx-head-btn" id="btnExpandDividendsChart">
+        Expandir
+      </button>
+    </div>
     <div class="gx-chart-scroll" style="margin-top:10px;">
       <div style="height:280px; min-width:900px;">
         <canvas id="gxChartDivTickers"></canvas>
@@ -361,6 +373,7 @@
     </div>
   </div>
 </div>
+
 
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
@@ -402,8 +415,30 @@
             </div>
           </div>
 
-          <div class="small text-secondary mt-3">
+                   <div class="small text-secondary mt-3">
             Dica: se “Setores” estiver vazio, vai a Ações e preenche o campo Setor em cada ticker.
+          </div>
+        </div>
+      </div>
+
+      <div class="modal fade" id="gxExpandModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <div>
+                <h5 class="modal-title mb-0" id="gxExpandModalTitle">Gráfico expandido</h5>
+                <div class="text-secondary small" id="gxExpandModalHint"></div>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+              <div class="gx-chart-scroll">
+                <div style="height:420px; min-width:1200px;">
+                  <canvas id="gxExpandCanvas"></canvas>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -434,6 +469,131 @@
     charts = [];
   }
 
+  let expandedChart = null;
+
+  function setChartMinWidth(canvasId, totalLabels) {
+  const canvas = $(canvasId);
+  if (!canvas) return;
+
+  const baseWidth = 700;
+  const widthPerLabel = 70;
+  const finalWidth = Math.max(baseWidth, totalLabels * widthPerLabel);
+
+  const wrap = canvas.parentElement;
+  if (wrap) {
+    wrap.style.minWidth = `${finalWidth}px`;
+  }
+}
+
+function destroyExpandedChart() {
+  if (expandedChart) {
+    try { expandedChart.destroy(); } catch {}
+    expandedChart = null;
+  }
+}
+
+function buildExpandedData(type) {
+  const port = getPortfolio();
+  const cur = calcCurrent(port);
+  const div = calcDividends(port);
+
+  if (type === "stocks") {
+    const map = groupSum(
+      cur.stocks.filter(s => s.ticker),
+      (s) => s.ticker,
+      (s) => s.currentValue
+    );
+
+    const arr = Array.from(map.entries())
+      .map(([label, value]) => ({ label, value: num(value) }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      title: "Top holdings — Ações (expandido)",
+      hint: `${arr.length} posições`,
+      labels: arr.map(x => x.label),
+      values: arr.map(x => x.value),
+      datasetLabel: "Valor atual (€)"
+    };
+  }
+
+  if (type === "dividends") {
+    const arr = Array.from(div.byTicker.entries())
+      .map(([label, value]) => ({ label, value: num(value) }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      title: "Dividendos — por empresa (expandido)",
+      hint: `${arr.length} empresas • Total ${euro(div.totalYear)}/ano`,
+      labels: arr.map(x => x.label),
+      values: arr.map(x => x.value),
+      datasetLabel: "Dividendos (€/ano)"
+    };
+  }
+
+  return null;
+}
+
+function openExpandedChart(type) {
+  const modalEl = $("gxExpandModal");
+  const canvas = $("gxExpandCanvas");
+  const titleEl = $("gxExpandModalTitle");
+  const hintEl = $("gxExpandModalHint");
+
+  if (!modalEl || !canvas || typeof bootstrap === "undefined") return;
+
+  const data = buildExpandedData(type);
+  if (!data) return;
+
+  if (titleEl) titleEl.textContent = data.title;
+  if (hintEl) hintEl.textContent = data.hint;
+
+  const innerWrap = canvas.parentElement;
+  if (innerWrap) {
+    const baseWidth = 1200;
+    const widthPerLabel = 80;
+    const finalWidth = Math.max(baseWidth, data.labels.length * widthPerLabel);
+    innerWrap.style.minWidth = `${finalWidth}px`;
+  }
+
+  destroyExpandedChart();
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  expandedChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: data.datasetLabel,
+        data: data.values
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          ticks: {
+            autoSkip: false,
+            maxRotation: 45,
+            minRotation: 20
+          }
+        },
+        y: {
+          ticks: {
+            callback: (v) => euro(v)
+          }
+        }
+      }
+    }
+  });
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
   function getRangeMonths() {
     const sel = $("gxRange");
     const v = sel ? Number(sel.value) : 24;
@@ -446,11 +606,37 @@
   }
 
   function wireUI() {
-    const sel = $("gxRange");
-    if (sel && !sel.__wired) {
-      sel.__wired = true;
-      sel.addEventListener("change", () => renderCharts());
-    }
+  const sel = $("gxRange");
+
+  if (sel && !sel.__wired) {
+    sel.__wired = true;
+    sel.addEventListener("change", () => renderCharts());
+  }
+
+  const btnStocks = $("btnExpandStocksChart");
+  const btnDiv = $("btnExpandDividendsChart");
+
+    if (btnStocks && !btnStocks.__wired) {
+    btnStocks.__wired = true;
+    btnStocks.addEventListener("click", () => {
+      openExpandedChart("stocks");
+    });
+  }
+
+   if (btnDiv && !btnDiv.__wired) {
+    btnDiv.__wired = true;
+    btnDiv.addEventListener("click", () => {
+      openExpandedChart("dividends");
+    });
+  }
+
+    const modalEl = $("gxExpandModal");
+  if (modalEl && !modalEl.__wired) {
+    modalEl.__wired = true;
+    modalEl.addEventListener("hidden.bs.modal", () => {
+      destroyExpandedChart();
+    });
+  }
   }
 
   function renderCharts() {
@@ -523,6 +709,7 @@
       if (ctxStocks) {
         const map = groupSum(cur.stocks.filter(s => s.ticker), (s) => s.ticker, (s) => s.currentValue);
         const packed = topNWithOthersFromMap(map, 12, "OUTROS");
+        setChartMinWidth("gxChartStocks", packed.labels.length);
         charts.push(new Chart(ctxStocks, {
           type: "bar",
           data: { labels: packed.labels, datasets: [{ label: "Valor atual (€)", data: packed.values }] },
@@ -607,6 +794,7 @@ if (ctxP2P) {
       const ctxDiv = $("gxChartDivTickers")?.getContext("2d");
       if (ctxDiv) {
         const packed = topNWithOthersFromMap(div.byTicker, 12, "OUTROS");
+        setChartMinWidth("gxChartDivTickers", packed.labels.length);
         charts.push(new Chart(ctxDiv, {
           type: "bar",
           data: { labels: packed.labels, datasets: [{ label: "Dividendos (€/ano)", data: packed.values }] },
