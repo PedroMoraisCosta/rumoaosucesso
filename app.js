@@ -1415,25 +1415,85 @@ for (const d of list) {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    for (const x of data.p2p) {
-      const r = calcP2PRow(x);
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(x.platform)}</td>
-        <td>${escapeHtml(x.project)}</td>
-        <td class="text-end">${fmtEUR(x.amount)}</td>
-        <td class="text-end">${fmtPct(x.rate)}</td>
-        <td class="text-end">${r.years.toFixed(2)}</td>
-        <td class="text-end">${fmtEUR(r.finalValue)}</td>
-        <td class="text-end">${fmtEUR(r.profit)}</td>
-        <td class="text-end">${fmtPct(r.pct)}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
+   let list = [...data.p2p];
+
+if (window.__p2SortKey) {
+
+  const key = window.__p2SortKey;
+  const dir = window.__p2SortDir || 1;
+
+  list.sort((a, b) => {
+
+    const ra = calcP2PRow(a);
+    const rb = calcP2PRow(b);
+
+    let av = 0;
+    let bv = 0;
+
+    if (key === "platform") {
+      return dir * a.platform.localeCompare(b.platform);
     }
+
+    if (key === "project") {
+      return dir * a.project.localeCompare(b.project);
+    }
+
+    if (key === "amount") {
+      av = safeNum(a.amount);
+      bv = safeNum(b.amount);
+    }
+
+    if (key === "rate") {
+      av = safeNum(a.rate);
+      bv = safeNum(b.rate);
+    }
+
+    if (key === "years") {
+      av = ra.years;
+      bv = rb.years;
+    }
+
+    if (key === "final") {
+      av = ra.finalValue;
+      bv = rb.finalValue;
+    }
+
+    if (key === "profit") {
+      av = ra.profit;
+      bv = rb.profit;
+    }
+
+    if (key === "pct") {
+      av = ra.pct;
+      bv = rb.pct;
+    }
+
+    return dir * (av - bv);
+  });
+
+}
+
+for (const x of list) {
+
+  const r = calcP2PRow(x);
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${escapeHtml(x.platform)}</td>
+    <td>${escapeHtml(x.project)}</td>
+    <td class="text-end">${fmtEUR(x.amount)}</td>
+    <td class="text-end">${fmtPct(x.rate)}</td>
+    <td class="text-end">${r.years.toFixed(2)}</td>
+    <td class="text-end">${fmtEUR(r.finalValue)}</td>
+    <td class="text-end">${fmtEUR(r.profit)}</td>
+    <td class="text-end">${fmtPct(r.pct)}</td>
+    <td class="text-end">
+      <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
+      <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
 
     if (!tbody.__bound) {
       tbody.__bound = true;
@@ -1462,6 +1522,28 @@ for (const d of list) {
           data2.p2p = data2.p2p.filter(r => r.id !== id);
           setData(data2);
         }
+      });
+    }
+    if (!window.__p2SortBound) {
+      window.__p2SortBound = true;
+
+      const headers = document.querySelectorAll("#sec-p2p th[data-sort]");
+
+      headers.forEach(th => {
+        th.style.cursor = "pointer";
+
+        th.addEventListener("click", () => {
+          const key = th.dataset.sort;
+
+          if (window.__p2SortKey === key) {
+            window.__p2SortDir *= -1;
+          } else {
+            window.__p2SortKey = key;
+            window.__p2SortDir = 1;
+          }
+
+          renderP2P();
+        });
       });
     }
   }
