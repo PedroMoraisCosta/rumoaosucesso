@@ -11,6 +11,7 @@
     date: $("ldDate"),
     type: $("ldType"),
     cls: $("ldClass"),
+    category: $("ldCategory"),
     amount: $("ldAmount"),
     note: $("ldNote"),
     btnCancel: $("btnLedgerCancel"),
@@ -35,6 +36,20 @@
       .replaceAll("'", "&#039;");
   }
   function uid() { return "l_" + Math.random().toString(16).slice(2) + Date.now().toString(16); }
+
+    function categoryLabel(v) {
+    const map = {
+      deposit: "Depósito / reforço",
+      stock_dividend: "Dividendo ações",
+      stock_sale: "Venda ações",
+      crypto_sale: "Venda cripto",
+      p2p_interest: "Juros P2P",
+      fund_interest: "Juros fundos",
+      transfer: "Transferência",
+      other: "Outro"
+    };
+    return map[v] || "—";
+  }
 
   function getList() {
     try {
@@ -65,18 +80,29 @@
   }
 
   function validate() {
-    const date = (els.date?.value || "").trim();
+        const date = (els.date?.value || "").trim();
     const type = (els.type?.value || "").trim(); // in|out
     const cls = (els.cls?.value || "").trim();   // banco|acoes|cripto|p2p|fundos
+    const category = (els.category?.value || "").trim();
     const amount = num(els.amount?.value);
     const note = (els.note?.value || "").trim();
 
-    if (!date) return { ok: false, msg: "Falta a data." };
+      if (!date) return { ok: false, msg: "Falta a data." };
     if (!["in", "out"].includes(type)) return { ok: false, msg: "Tipo inválido." };
     if (!["banco", "acoes", "cripto", "p2p", "fundos"].includes(cls)) return { ok: false, msg: "Classe inválida." };
+    if (![
+      "deposit",
+      "stock_dividend",
+      "stock_sale",
+      "crypto_sale",
+      "p2p_interest",
+      "fund_interest",
+      "transfer",
+      "other"
+    ].includes(category)) return { ok: false, msg: "Origem / Evento inválido." };
     if (amount <= 0) return { ok: false, msg: "Valor tem de ser > 0." };
 
-    return { ok: true, data: { date, type, cls, amount, note } };
+    return { ok: true, data: { date, type, cls, category, amount, note } };
   }
 
   function clearForm() {
@@ -89,8 +115,9 @@
       const d = new Date();
       els.date.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
-    if (els.type) els.type.value = "in";
+        if (els.type) els.type.value = "in";
     if (els.cls) els.cls.value = "banco";
+    if (els.category) els.category.value = "deposit";
   }
 
   function setEdit(id) {
@@ -99,9 +126,10 @@
     if (!row) return;
 
     editingId = id;
-    if (els.date) els.date.value = row.date || "";
+        if (els.date) els.date.value = row.date || "";
     if (els.type) els.type.value = row.type || "in";
     if (els.cls) els.cls.value = row.cls || "banco";
+    if (els.category) els.category.value = row.category || "deposit";
     if (els.amount) els.amount.value = row.amount ?? "";
     if (els.note) els.note.value = row.note || "";
 
@@ -162,17 +190,18 @@
     if (!els.tbody) return;
     els.tbody.innerHTML = "";
 
-    if (!list.length) {
-      els.tbody.innerHTML = `<tr><td colspan="6" class="text-secondary small">Sem movimentos ainda.</td></tr>`;
+        if (!list.length) {
+      els.tbody.innerHTML = `<tr><td colspan="7" class="text-secondary small">Sem movimentos ainda.</td></tr>`;
       return;
     }
 
     for (const x of list) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
+            tr.innerHTML = `
         <td>${esc(x.date)}</td>
         <td>${x.type === "out" ? "Saída" : "Entrada"}</td>
         <td>${esc(x.cls)}</td>
+        <td>${esc(categoryLabel(x.category))}</td>
         <td class="text-end">${euro(x.amount)}</td>
         <td>${esc(x.note || "")}</td>
         <td class="text-end">

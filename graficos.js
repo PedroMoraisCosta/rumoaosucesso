@@ -385,6 +385,51 @@
               </div>
             </div>
 
+                        <div class="col-12 col-xl-6">
+              <div class="bg-white border rounded p-3">
+                <div class="fw-semibold">Top ROI do portefólio</div>
+                <div class="text-secondary small">Ações + Cripto ordenadas por ROI</div>
+
+                <div class="table-responsive mt-3">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Ativo</th>
+                        <th>Tipo</th>
+                        <th class="text-end">Investido</th>
+                        <th class="text-end">Atual</th>
+                        <th class="text-end">Lucro</th>
+                        <th class="text-end">ROI %</th>
+                      </tr>
+                    </thead>
+                    <tbody id="gxRoiTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+                        <div class="col-12 col-xl-6">
+              <div class="bg-white border rounded p-3">
+                <div class="fw-semibold">Ranking plataformas P2P</div>
+                <div class="text-secondary small">Agrupado por plataforma</div>
+
+                <div class="table-responsive mt-3">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Plataforma</th>
+                        <th class="text-end">Investido</th>
+                        <th class="text-end">Valor final</th>
+                        <th class="text-end">Lucro</th>
+                        <th class="text-end">ROI %</th>
+                      </tr>
+                    </thead>
+                    <tbody id="gxP2PPlatformTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
             <div class="col-12 col-xl-6">
               <div class="bg-white border rounded p-3">
                 <div class="fw-semibold">Investimento novo (net flow) — por mês</div>
@@ -433,12 +478,12 @@
             </div>
 
             <div class="modal-body">
-              <div class="gx-chart-scroll">
-                <div style="height:420px; min-width:1200px;">
-                  <canvas id="gxExpandCanvas"></canvas>
-                </div>
-              </div>
-            </div>
+  <div class="gx-chart-scroll">
+    <div style="height:360px; min-width:1000px;">
+      <canvas id="gxExpandCanvas"></canvas>
+    </div>
+  </div>
+</div>
           </div>
         </div>
       </div>
@@ -524,7 +569,7 @@ function buildExpandedData(type) {
 
     return {
       title: "Dividendos — por empresa (expandido)",
-      hint: `${arr.length} empresas • Total ${euro(div.totalYear)}/ano`,
+       hint: `${arr.length} empresas`,
       labels: arr.map(x => x.label),
       values: arr.map(x => x.value),
       datasetLabel: "Dividendos (€/ano)"
@@ -545,13 +590,22 @@ function openExpandedChart(type) {
   const data = buildExpandedData(type);
   if (!data) return;
 
-  if (titleEl) titleEl.textContent = data.title;
-  if (hintEl) hintEl.textContent = data.hint;
+   const totalValue = data.values.reduce((a, v) => a + num(v), 0);
 
-  const innerWrap = canvas.parentElement;
+  if (titleEl) titleEl.textContent = data.title;
+
+  if (hintEl) {
+    if (type === "dividends") {
+      hintEl.textContent = `${data.hint} • ${euro(totalValue)}/ano`;
+    } else {
+      hintEl.textContent = `${data.hint} • ${euro(totalValue)}`;
+    }
+  }
+
+    const innerWrap = canvas.parentElement;
   if (innerWrap) {
-    const baseWidth = 1200;
-    const widthPerLabel = 80;
+    const baseWidth = 1000;
+    const widthPerLabel = 75;
     const finalWidth = Math.max(baseWidth, data.labels.length * widthPerLabel);
     innerWrap.style.minWidth = `${finalWidth}px`;
   }
@@ -573,6 +627,20 @@ function openExpandedChart(type) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const label = context.dataset.label || "Valor";
+              const value = num(context.parsed.y);
+              return `${label}: ${euro(value)}`;
+            }
+          }
+        }
+      },
       scales: {
         x: {
           ticks: {
@@ -592,6 +660,94 @@ function openExpandedChart(type) {
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+}
+
+function buildPortfolioRoiRanking() {
+  const port = getPortfolio();
+  const cur = calcCurrent(port);
+
+  const stockRows = cur.stocks
+    .map((s) => {
+      const invested = num(s.investedValue);
+      const current = num(s.currentValue);
+      const profit = current - invested;
+      const roiPct = invested > 0 ? (profit / invested) * 100 : 0;
+
+      return {
+        name: s.ticker,
+        type: "Ação",
+        invested,
+        current,
+        profit,
+        roiPct
+      };
+    })
+    .filter((x) => x.name && x.invested > 0);
+
+  const cryptoRows = cur.crypto
+    .map((c) => {
+      const invested = num(c.invest);
+      const current = num(c.currentValue);
+      const profit = current - invested;
+      const roiPct = invested > 0 ? (profit / invested) * 100 : 0;
+
+      return {
+        name: c.coin,
+        type: "Cripto",
+        invested,
+        current,
+        profit,
+        roiPct
+      };
+    })
+    .filter((x) => x.name && x.invested > 0);
+
+  return [...stockRows, ...cryptoRows]
+    .sort((a, b) => b.roiPct - a.roiPct);
+}
+
+function buildP2PPlatformRanking() {
+  const port = getPortfolio();
+  const rows = Array.isArray(port.p2p) ? port.p2p : [];
+
+  const map = new Map();
+
+  for (const p of rows) {
+    const platform = String(p.platform || "—").trim() || "—";
+    const amount = num(p.amount);
+    const rate = num(p.rate) / 100;
+
+    let years = num(p.years);
+    if (!years && p.start && p.end) {
+      const ms = new Date(p.end).getTime() - new Date(p.start).getTime();
+      years = ms > 0 ? ms / (365.25 * 24 * 3600 * 1000) : 0;
+    }
+    years = years > 0 ? years : 1;
+
+    const final = amount + (amount * rate * years);
+    const profit = final - amount;
+
+    if (!map.has(platform)) {
+      map.set(platform, {
+        platform,
+        invested: 0,
+        final: 0,
+        profit: 0
+      });
+    }
+
+    const acc = map.get(platform);
+    acc.invested += amount;
+    acc.final += final;
+    acc.profit += profit;
+  }
+
+  return Array.from(map.values())
+    .map((x) => ({
+      ...x,
+      roiPct: x.invested > 0 ? (x.profit / x.invested) * 100 : 0
+    }))
+    .sort((a, b) => b.roiPct - a.roiPct);
 }
 
   function getRangeMonths() {
@@ -880,12 +1036,56 @@ const totalSeries = months.map(m => m >= currentMonth ? (divMonth + p2pMonth + f
           options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (v) => euro(v) } } } }
         }));
       }
+            // 12) Ranking ROI do portefólio
+      const roiTable = $("gxRoiTable");
+      if (roiTable) {
+        const rows = buildPortfolioRoiRanking().slice(0, 10);
+
+        roiTable.innerHTML = rows.map((r) => {
+          const profitClass = r.profit >= 0 ? "ras-pos" : "ras-neg";
+          const roiClass = r.roiPct >= 0 ? "ras-pos" : "ras-neg";
+
+          return `
+            <tr>
+              <td><strong>${r.name}</strong></td>
+              <td>${r.type}</td>
+              <td class="text-end">${euro(r.invested)}</td>
+              <td class="text-end">${euro(r.current)}</td>
+              <td class="text-end ${profitClass}">${euro(r.profit)}</td>
+              <td class="text-end ${roiClass}">${r.roiPct.toFixed(2)}%</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+            // 13) Ranking plataformas P2P
+      const p2pTable = $("gxP2PPlatformTable");
+      if (p2pTable) {
+        const rows = buildP2PPlatformRanking();
+
+        p2pTable.innerHTML = rows.map((r) => {
+          const profitClass = r.profit >= 0 ? "ras-pos" : "ras-neg";
+          const roiClass = r.roiPct >= 0 ? "ras-pos" : "ras-neg";
+
+          return `
+            <tr>
+              <td><strong>${r.platform}</strong></td>
+              <td class="text-end">${euro(r.invested)}</td>
+              <td class="text-end">${euro(r.final)}</td>
+              <td class="text-end ${profitClass}">${euro(r.profit)}</td>
+              <td class="text-end ${roiClass}">${r.roiPct.toFixed(2)}%</td>
+            </tr>
+          `;
+        }).join("");
+      }
 
     } catch (e) {
       console.error("[graficos.js] renderCharts falhou:", e);
       setErr("Erro ao desenhar gráficos. Abre o Console (F12) para ver o detalhe.");
     }
   }
+
+  
 
   // -----------------------
   // Fix: menu usa replaceState (sem hashchange)

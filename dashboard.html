@@ -1039,15 +1039,40 @@
                   </select>
                 </div>
 
+                <div class="col-12 col-md-3">
+  <label class="form-label">Origem / Evento</label>
+  <select id="ldCategory" class="form-select" required>
+    <optgroup label="Entradas">
+      <option value="deposit">Depósito / reforço</option>
+      <option value="stock_dividend">Dividendo ações</option>
+      <option value="stock_sale">Venda ações</option>
+      <option value="crypto_sale">Venda cripto</option>
+      <option value="p2p_interest">Juros P2P</option>
+      <option value="fund_interest">Juros fundos</option>
+      <option value="transfer_in">Transferência recebida</option>
+      <option value="other_in">Outro (entrada)</option>
+    </optgroup>
+
+    <optgroup label="Saídas">
+      <option value="stock_buy">Compra ações</option>
+      <option value="crypto_buy">Compra cripto</option>
+      <option value="p2p_buy">Reforço P2P</option>
+      <option value="transfer_out">Transferência enviada</option>
+      <option value="withdraw">Levantamento</option>
+      <option value="other_out">Outro (saída)</option>
+    </optgroup>
+  </select>
+</div>
+
                 <div class="col-12 col-md-2">
                   <label class="form-label">Valor (€)</label>
                   <input id="ldAmount" type="number" step="0.01" class="form-control" required>
                 </div>
 
-                <div class="col-12 col-md-3">
-                  <label class="form-label">Nota</label>
-                  <input id="ldNote" type="text" class="form-control" placeholder="ex: reforço mensal XTB">
-                </div>
+                <div class="col-12 col-md-2">
+  <label class="form-label">Nota</label>
+  <input id="ldNote" type="text" class="form-control" placeholder="ex: dividendo IBM março">
+</div>
 
                 <div class="col-12 d-flex gap-2 mt-2">
                   <button id="btnLedgerAdd" class="btn btn-primary" type="submit">Adicionar</button>
@@ -1084,13 +1109,14 @@
                 <table class="table table-sm align-middle mb-0">
                   <thead class="table-light">
                     <tr>
-                      <th>Data</th>
-                      <th>Tipo</th>
-                      <th>Classe</th>
-                      <th class="text-end">Valor</th>
-                      <th>Nota</th>
-                      <th class="text-end">Ações</th>
-                    </tr>
+  <th>Data</th>
+  <th>Tipo</th>
+  <th>Classe</th>
+  <th>Origem / Evento</th>
+  <th class="text-end">Valor</th>
+  <th>Nota</th>
+  <th class="text-end">Ações</th>
+</tr>
                   </thead>
                   <tbody id="ledgerTbody"></tbody>
                 </table>
