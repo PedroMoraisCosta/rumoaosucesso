@@ -51,6 +51,108 @@
     return map[v] || "—";
   }
 
+    function getCategoryOptions(type, cls) {
+    const isIn = type === "in";
+    const isOut = type === "out";
+
+    const commonIn = [
+      { value: "transfer_in", label: "Transferência recebida" },
+      { value: "other_in", label: "Outro (entrada)" }
+    ];
+
+    const commonOut = [
+      { value: "transfer_out", label: "Transferência enviada" },
+      { value: "withdraw", label: "Levantamento" },
+      { value: "other_out", label: "Outro (saída)" }
+    ];
+
+    if (isIn && cls === "acoes") {
+      return [
+        { value: "stock_dividend", label: "Dividendo ações" },
+        { value: "stock_sale", label: "Venda ações" },
+        ...commonIn
+      ];
+    }
+
+    if (isIn && cls === "cripto") {
+      return [
+        { value: "crypto_sale", label: "Venda cripto" },
+        ...commonIn
+      ];
+    }
+
+    if (isIn && cls === "p2p") {
+      return [
+        { value: "p2p_interest", label: "Juros P2P" },
+        ...commonIn
+      ];
+    }
+
+    if (isIn && cls === "fundos") {
+      return [
+        { value: "fund_interest", label: "Juros fundos" },
+        { value: "deposit", label: "Depósito / reforço" },
+        ...commonIn
+      ];
+    }
+
+    if (isIn && cls === "banco") {
+      return [
+        { value: "deposit", label: "Depósito / reforço" },
+        ...commonIn
+      ];
+    }
+
+    if (isOut && cls === "acoes") {
+      return [
+        { value: "stock_buy", label: "Compra ações" },
+        ...commonOut
+      ];
+    }
+
+    if (isOut && cls === "cripto") {
+      return [
+        { value: "crypto_buy", label: "Compra cripto" },
+        ...commonOut
+      ];
+    }
+
+    if (isOut && cls === "p2p") {
+      return [
+        { value: "p2p_buy", label: "Reforço P2P" },
+        ...commonOut
+      ];
+    }
+
+    if (isOut && cls === "fundos") {
+      return [
+        ...commonOut
+      ];
+    }
+
+    if (isOut && cls === "banco") {
+      return [
+        ...commonOut
+      ];
+    }
+
+    return isIn ? commonIn : commonOut;
+  }
+
+    function syncCategoryOptions(preferredValue = "") {
+    if (!els.category || !els.type || !els.cls) return;
+
+    const options = getCategoryOptions(els.type.value, els.cls.value);
+    const currentValue = preferredValue || els.category.value;
+
+    els.category.innerHTML = options
+      .map((opt) => `<option value="${opt.value}">${esc(opt.label)}</option>`)
+      .join("");
+
+    const exists = options.some((opt) => opt.value === currentValue);
+    els.category.value = exists ? currentValue : (options[0]?.value || "");
+  }
+
   function getList() {
     try {
       const raw = localStorage.getItem(KEY);
@@ -115,9 +217,9 @@
       const d = new Date();
       els.date.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
-        if (els.type) els.type.value = "in";
+         if (els.type) els.type.value = "in";
     if (els.cls) els.cls.value = "banco";
-    if (els.category) els.category.value = "deposit";
+    syncCategoryOptions("deposit");
   }
 
   function setEdit(id) {
@@ -129,7 +231,7 @@
         if (els.date) els.date.value = row.date || "";
     if (els.type) els.type.value = row.type || "in";
     if (els.cls) els.cls.value = row.cls || "banco";
-    if (els.category) els.category.value = row.category || "deposit";
+    syncCategoryOptions(row.category || "deposit");
     if (els.amount) els.amount.value = row.amount ?? "";
     if (els.note) els.note.value = row.note || "";
 
@@ -219,6 +321,15 @@
     if (els.form && !els.form.__wired) {
       els.form.__wired = true;
       els.form.addEventListener("submit", (e) => { e.preventDefault(); upsert(); });
+    }
+        if (els.type && !els.type.__wiredCategory) {
+      els.type.__wiredCategory = true;
+      els.type.addEventListener("change", () => syncCategoryOptions());
+    }
+
+    if (els.cls && !els.cls.__wiredCategory) {
+      els.cls.__wiredCategory = true;
+      els.cls.addEventListener("change", () => syncCategoryOptions());
     }
     if (els.btnCancel) els.btnCancel.addEventListener("click", clearForm);
     if (els.btnWipe) els.btnWipe.addEventListener("click", wipeAll);
