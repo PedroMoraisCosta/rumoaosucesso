@@ -760,6 +760,10 @@ function wipeAllData() {
     const p2 = calcP2P(data);
     const fd = calcFunds(data);
     const dv = calcDividendsTotal(data);
+        let passiveRealMonth = 0;
+    if (window.LEDGER && typeof window.LEDGER.getPassiveIncomeMonth === "function") {
+      passiveRealMonth = window.LEDGER.getPassiveIncomeMonth();
+    }
 
     const totalInvestidoAtivos = st.invested + cr.invested + p2.invested;
     const ativosAtuais = st.current + cr.current + p2.finals;
@@ -789,6 +793,7 @@ function wipeAllData() {
 
     if ($("plRecAno")) $("plRecAno").textContent = fmtEUR(totalRecorrenteAno);
     if ($("plRecMes")) $("plRecMes").textContent = fmtEUR(totalRecorrenteMes);
+    if ($("plRecMesReal")) $("plRecMesReal").textContent = fmtEUR(passiveRealMonth);
     if ($("plRecDia")) $("plRecDia").textContent = fmtEUR(totalRecorrenteDia);
 
     if ($("plDvAno")) $("plDvAno").textContent = fmtEUR(dv.year);

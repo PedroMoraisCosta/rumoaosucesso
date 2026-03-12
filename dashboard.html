@@ -203,20 +203,25 @@
                   <div class="small text-secondary">Dividendos + P2P + Fundos Parados</div>
                 </div>
 
-                <div class="row g-3 mt-1">
-                  <div class="col-12 col-md-4">
-                    <div class="text-secondary small">Ano</div>
-                    <div class="fs-4 fw-bold" id="plRecAno">0,00 €</div>
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <div class="text-secondary small">Mês</div>
-                    <div class="fs-4 fw-bold" id="plRecMes">0,00 €</div>
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <div class="text-secondary small">Dia</div>
-                    <div class="fs-4 fw-bold" id="plRecDia">0,00 €</div>
-                  </div>
-                </div>
+               <div class="row g-3 mt-1">
+  <div class="col-12 col-md-4">
+    <div class="text-secondary small">Ano</div>
+    <div class="fs-4 fw-bold" id="plRecAno">0,00 €</div>
+  </div>
+
+  <div class="col-12 col-md-4">
+    <div class="text-secondary small">Mês</div>
+    <div class="fs-4 fw-bold" id="plRecMes">0,00 €</div>
+    <div class="small text-secondary mt-1">
+      Recebido real: <span id="plRecMesReal">0,00 €</span>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-4">
+    <div class="text-secondary small">Dia</div>
+    <div class="fs-4 fw-bold" id="plRecDia">0,00 €</div>
+  </div>
+</div>
 
                 <hr class="my-3"/>
 
@@ -1080,7 +1085,7 @@
                 </div>
               </form>
 
-              <hr class="my-3"/>
+             <hr class="my-3"/>
 
               <div class="row g-3">
                 <div class="col-12 col-lg-4">
@@ -1089,16 +1094,48 @@
                     <div class="fs-4 fw-bold" id="ldNetMonth">0,00 €</div>
                   </div>
                 </div>
+
                 <div class="col-12 col-lg-4">
                   <div class="border rounded p-3 bg-white">
                     <div class="text-secondary small">Net flow (ano atual)</div>
                     <div class="fs-4 fw-bold" id="ldNetYear">0,00 €</div>
                   </div>
                 </div>
+
                 <div class="col-12 col-lg-4">
                   <div class="border rounded p-3 bg-white">
                     <div class="text-secondary small">Movimentos registados</div>
                     <div class="fs-4 fw-bold" id="ldCount">0</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white">
+                    <div class="text-secondary small">Dividendos recebidos (mês)</div>
+                    <div class="fs-4 fw-bold" id="ldDivMonth">0,00 €</div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white">
+                    <div class="text-secondary small">Juros P2P (mês)</div>
+                    <div class="fs-4 fw-bold" id="ldP2PMonth">0,00 €</div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white">
+                    <div class="text-secondary small">Juros Fundos (mês)</div>
+                    <div class="fs-4 fw-bold" id="ldFundMonth">0,00 €</div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <div class="border rounded p-3 bg-white">
+                    <div class="text-secondary small">Rendimento passivo (mês)</div>
+                    <div class="fs-4 fw-bold" id="ldPassiveMonth">0,00 €</div>
                   </div>
                 </div>
               </div>

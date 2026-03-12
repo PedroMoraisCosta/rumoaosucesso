@@ -20,6 +20,10 @@
     netMonth: $("ldNetMonth"),
     netYear: $("ldNetYear"),
     count: $("ldCount"),
+    divMonth: $("ldDivMonth"),
+    p2pMonth: $("ldP2PMonth"),
+    fundMonth: $("ldFundMonth"),
+    passiveMonth: $("ldPassiveMonth"),
   };
 
   let editingId = null;
@@ -283,10 +287,35 @@
 
     const netM = calcNet(list, (x) => monthKey(x.date) === ym);
     const netY = calcNet(list, (x) => yearKey(x.date) === yy);
+        let divMonth = 0;
+    let p2pMonth = 0;
+    let fundMonth = 0;
+
+    for (const x of list) {
+      if (monthKey(x.date) !== ym) continue;
+
+      if (x.category === "stock_dividend") {
+        divMonth += num(x.amount);
+      }
+
+      if (x.category === "p2p_interest") {
+        p2pMonth += num(x.amount);
+      }
+
+      if (x.category === "fund_interest") {
+        fundMonth += num(x.amount);
+      }
+    }
+
+    const passiveMonth = divMonth + p2pMonth + fundMonth;
 
     if (els.netMonth) els.netMonth.textContent = euro(netM);
     if (els.netYear) els.netYear.textContent = euro(netY);
     if (els.count) els.count.textContent = String(list.length);
+    if (els.divMonth) els.divMonth.textContent = euro(divMonth);
+    if (els.p2pMonth) els.p2pMonth.textContent = euro(p2pMonth);
+    if (els.fundMonth) els.fundMonth.textContent = euro(fundMonth);
+    if (els.passiveMonth) els.passiveMonth.textContent = euro(passiveMonth);
 
     // table
     if (!els.tbody) return;
@@ -352,6 +381,27 @@
   window.LEDGER = window.LEDGER || {};
   window.LEDGER.getAll = getList;
   window.LEDGER.render = render;
+  window.LEDGER.getPassiveIncomeMonth = function () {
+  const list = getList();
+  const today = new Date();
+  const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  let total = 0;
+
+  for (const x of list) {
+    if (monthKey(x.date) !== ym) continue;
+
+    if (
+      x.category === "stock_dividend" ||
+      x.category === "p2p_interest" ||
+      x.category === "fund_interest"
+    ) {
+      total += num(x.amount);
+    }
+  }
+
+  return total;
+};
 
   document.addEventListener("DOMContentLoaded", () => {
     wire();
