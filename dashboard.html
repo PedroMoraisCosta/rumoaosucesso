@@ -146,6 +146,19 @@
                 Património total = Ativos atuais + Fundos Parados + Banco Pessoal.
               </div>
 
+              <div class="row g-3 align-items-end mb-3">
+  <div class="col-12 col-md-4">
+    <div class="text-secondary small mb-1">Taxa anual assumida (%)</div>
+    <input id="fiAssumedGrowthYear" type="number" class="form-control" min="0" step="0.01" value="10">
+  </div>
+
+  <div class="col-12 col-md-4">
+    <button id="btnSaveFiAssumedGrowthYear" type="button" class="btn btn-outline-primary w-100">
+      Guardar taxa assumida
+    </button>
+  </div>
+</div>
+
               <div class="row g-3">
                 <div class="col-12 col-md-3">
                   <div class="border rounded p-3 bg-white h-100">
@@ -323,6 +336,51 @@
       <div class="col-12 col-md-3">
         <div class="text-secondary small">Ano estimado FIRE</div>
         <div class="fs-5 fw-bold" id="fiFireYear">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="card shadow-sm mt-3">
+  <div class="card-body">
+    <h5>⚡ FIRE Acceleration Meter</h5>
+    <div class="text-secondary small mb-3">
+      Mede quantos anos podes ganhar se investires mais por mês
+    </div>
+
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4">
+        <div class="text-secondary small mb-1">Extra investimento / mês (€)</div>
+        <input id="fiExtraInvestMonth" type="number" class="form-control" min="0" step="0.01" value="100">
+      </div>
+
+      <div class="col-12 col-md-4">
+        <button id="btnCalcFireAccel" type="button" class="btn btn-primary w-100">
+          Calcular aceleração
+        </button>
+      </div>
+    </div>
+
+    <hr class="my-3">
+
+    <div class="row g-3">
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Anos até FIRE (atual)</div>
+        <div class="fs-5 fw-bold" id="fiAccelYearsBase">—</div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Anos até FIRE (acelerado)</div>
+        <div class="fs-5 fw-bold" id="fiAccelYearsBoost">—</div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Anos ganhos</div>
+        <div class="fs-5 fw-bold" id="fiAccelYearsSaved">—</div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Extra mensal usado</div>
+        <div class="fs-5 fw-bold" id="fiAccelExtraShown">—</div>
       </div>
     </div>
   </div>

@@ -835,6 +835,7 @@ function wipeAllData() {
     const totalRecorrenteMes = totalRecorrenteAno / 12;
     const totalRecorrenteDia = totalRecorrenteAno / 365.25;
     const fiGoalMonth = safeNum(data.patrimonio?.fiGoalMonth);
+        const fiAssumedGrowthYear = safeNum(data.patrimonio?.fiAssumedGrowthYear || 10);
     const fiCurrentMonth = totalRecorrenteMes;
     const fiMissingMonth = Math.max(0, fiGoalMonth - fiCurrentMonth);
     const fiProgressPct = fiGoalMonth > 0 ? (fiCurrentMonth / fiGoalMonth) * 100 : 0;
@@ -865,7 +866,8 @@ function wipeAllData() {
     if ($("plFdAno")) $("plFdAno").textContent = fmtEUR(fd.yearProfit);
     if ($("plFdMes")) $("plFdMes").textContent = fmtEUR(fd.monthProfit);
     if ($("plFdDia")) $("plFdDia").textContent = fmtEUR(fd.dayProfit);
-        if ($("inpFiGoalMonth")) $("inpFiGoalMonth").value = fiGoalMonth ? String(fiGoalMonth) : "";
+    if ($("inpFiGoalMonth")) $("inpFiGoalMonth").value = fiGoalMonth ? String(fiGoalMonth) : "";
+    if ($("fiAssumedGrowthYear")) $("fiAssumedGrowthYear").value = String(fiAssumedGrowthYear || 10);
     if ($("fiCurrentMonth")) $("fiCurrentMonth").textContent = fmtEUR(fiCurrentMonth);
     if ($("fiGoalMonth")) $("fiGoalMonth").textContent = fmtEUR(fiGoalMonth);
     if ($("fiMissingMonth")) $("fiMissingMonth").textContent = fmtEUR(fiMissingMonth);
@@ -878,6 +880,7 @@ function wipeAllData() {
       fiBar.setAttribute("aria-valuenow", String(fiProgressPctClamped.toFixed(1)));
     }
         renderFireRadar();
+    renderFireAccelerationMeter();
   }
   function renderFireRadar() {
     const hist = getHistory();
@@ -897,8 +900,21 @@ function wipeAllData() {
       return;
     }
 
-    const firstMonth = months[0];
-    const lastMonth = months[months.length - 1];
+       const validMonths = months.filter(m => {
+      const passive = safeNum(hist.months[m]?.snapshot?.fire?.passiveIncomeMonth);
+      return passive > 0;
+    });
+
+    if (validMonths.length < 2) {
+      setTxt("fiGrowthYear", "—");
+      setTxt("fiGapMonth", "—");
+      setTxt("fiYearsToFire", "—");
+      setTxt("fiFireYear", "—");
+      return;
+    }
+
+    const firstMonth = validMonths[0];
+    const lastMonth = validMonths[validMonths.length - 1];
 
     const firstPassive = safeNum(hist.months[firstMonth]?.snapshot?.fire?.passiveIncomeMonth);
     const lastPassive = safeNum(hist.months[lastMonth]?.snapshot?.fire?.passiveIncomeMonth);
@@ -914,22 +930,25 @@ function wipeAllData() {
       return;
     }
 
-    const monthsDiff = months.length - 1;
+        const monthsDiff = validMonths.length - 1;
     if (monthsDiff <= 0) {
       setTxt("fiGrowthYear", "—");
       setTxt("fiYearsToFire", "—");
       setTxt("fiFireYear", "—");
       return;
     }
+    let growthRateMonth = Math.pow(lastPassive / firstPassive, 1 / monthsDiff) - 1;
+    let growthRateYear = Math.pow(1 + growthRateMonth, 12) - 1;
 
-    const growthRateMonth = Math.pow(lastPassive / firstPassive, 1 / monthsDiff) - 1;
-    const growthRateYear = Math.pow(1 + growthRateMonth, 12) - 1;
+    const data = getData();
+    const assumedGrowthYear = safeNum(data.patrimonio?.fiAssumedGrowthYear || 10) / 100;
 
-    if (!Number.isFinite(growthRateYear)) {
-      setTxt("fiGrowthYear", "—");
-    } else {
-      setTxt("fiGrowthYear", fmtPct(growthRateYear * 100));
+    if (!Number.isFinite(growthRateYear) || growthRateYear <= 0) {
+      growthRateYear = assumedGrowthYear;
+      growthRateMonth = Math.pow(1 + growthRateYear, 1 / 12) - 1;
     }
+
+    setTxt("fiGrowthYear", fmtPct(growthRateYear * 100));
 
     if (lastPassive >= fiGoal) {
       setTxt("fiYearsToFire", "Atingido");
@@ -937,7 +956,7 @@ function wipeAllData() {
       return;
     }
 
-    if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
+       if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
       setTxt("fiYearsToFire", "Sem projeção");
       setTxt("fiFireYear", "—");
       return;
@@ -957,7 +976,115 @@ function wipeAllData() {
     setTxt("fiYearsToFire", `${yearsToFire.toFixed(1)} anos`);
     setTxt("fiFireYear", String(Math.round(fireYear)));
   }
-  
+
+    function renderFireAccelerationMeter() {
+    const hist = getHistory();
+    const months = Object.keys(hist.months || {})
+      .filter(isValidMonthKey)
+      .sort((a, b) => a.localeCompare(b));
+
+    const setTxt = (id, txt) => {
+      if ($(id)) $(id).textContent = txt;
+    };
+
+    const extraInvestMonth = safeNum($("fiExtraInvestMonth")?.value);
+    setTxt("fiAccelExtraShown", fmtEUR(extraInvestMonth));
+
+    if (months.length < 2) {
+      setTxt("fiAccelYearsBase", "—");
+      setTxt("fiAccelYearsBoost", "—");
+      setTxt("fiAccelYearsSaved", "—");
+      return;
+    }
+
+       const validMonths = months.filter(m => {
+      const passive = safeNum(hist.months[m]?.snapshot?.fire?.passiveIncomeMonth);
+      return passive > 0;
+    });
+
+    if (validMonths.length < 2) {
+      setTxt("fiAccelYearsBase", "—");
+      setTxt("fiAccelYearsBoost", "—");
+      setTxt("fiAccelYearsSaved", "—");
+      return;
+    }
+
+    const firstMonth = validMonths[0];
+    const lastMonth = validMonths[validMonths.length - 1];
+
+    const firstPassive = safeNum(hist.months[firstMonth]?.snapshot?.fire?.passiveIncomeMonth);
+    const lastPassive = safeNum(hist.months[lastMonth]?.snapshot?.fire?.passiveIncomeMonth);
+    const fiGoal = safeNum(hist.months[lastMonth]?.snapshot?.fire?.fiGoalMonth);
+
+    if (firstPassive <= 0 || lastPassive <= 0 || fiGoal <= 0 || lastPassive >= fiGoal) {
+      setTxt("fiAccelYearsBase", "—");
+      setTxt("fiAccelYearsBoost", "—");
+      setTxt("fiAccelYearsSaved", "—");
+      return;
+    }
+
+        const monthsDiff = validMonths.length - 1;
+    if (monthsDiff <= 0) {
+      setTxt("fiAccelYearsBase", "—");
+      setTxt("fiAccelYearsBoost", "—");
+      setTxt("fiAccelYearsSaved", "—");
+      return;
+    }
+
+     let growthRateMonth = Math.pow(lastPassive / firstPassive, 1 / monthsDiff) - 1;
+
+const assumedGrowthYear = safeNum(getData().patrimonio?.fiAssumedGrowthYear || 10) / 100;
+
+if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
+  growthRateMonth = Math.pow(1 + assumedGrowthYear, 1 / 12) - 1;
+}
+
+    if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
+      setTxt("fiAccelYearsBase", "Sem projeção");
+      setTxt("fiAccelYearsBoost", "Sem projeção");
+      setTxt("fiAccelYearsSaved", "—");
+      return;
+    }
+
+    const baseMonthsToFire = Math.log(fiGoal / lastPassive) / Math.log(1 + growthRateMonth);
+    const baseYearsToFire = baseMonthsToFire / 12;
+
+    const data = getData();
+    const st = calcStocks(data);
+    const p2 = calcP2P(data);
+    const fd = calcFunds(data);
+    const dv = calcDividendsTotal(data);
+
+    const passiveAnnual = dv.year + p2.profitPerYear + fd.yearProfit;
+    const incomeCapital = st.current + p2.finals + fd.total;
+
+    const passiveYieldAnnual = incomeCapital > 0 ? passiveAnnual / incomeCapital : 0;
+    const passiveYieldMonth = passiveYieldAnnual / 12;
+
+    let boostedPassive = lastPassive;
+    let boostedMonths = 0;
+
+    while (boostedPassive < fiGoal && boostedMonths < 600) {
+      boostedPassive = boostedPassive * (1 + growthRateMonth);
+      boostedPassive += extraInvestMonth * passiveYieldMonth;
+      boostedMonths++;
+    }
+
+    if (boostedMonths >= 600) {
+      setTxt("fiAccelYearsBase", `${baseYearsToFire.toFixed(1)} anos`);
+      setTxt("fiAccelYearsBoost", "Sem projeção");
+      setTxt("fiAccelYearsSaved", "—");
+      return;
+    }
+
+    const boostedYearsToFire = boostedMonths / 12;
+    const yearsSaved = Math.max(0, baseYearsToFire - boostedYearsToFire);
+
+    setTxt("fiAccelYearsBase", `${baseYearsToFire.toFixed(1)} anos`);
+    setTxt("fiAccelYearsBoost", `${boostedYearsToFire.toFixed(1)} anos`);
+    setTxt("fiAccelYearsSaved", `${yearsSaved.toFixed(1)} anos`);
+  }
+
   function saveBancoPessoal() {
     const data = getData();
     data.patrimonio = data.patrimonio || {};
@@ -970,7 +1097,12 @@ function wipeAllData() {
     data.patrimonio.fiGoalMonth = safeNum($("inpFiGoalMonth")?.value);
     setData(data);
   }
-
+  function saveFiAssumedGrowthYear() {
+    const data = getData();
+    data.patrimonio = data.patrimonio || {};
+    data.patrimonio.fiAssumedGrowthYear = safeNum($("fiAssumedGrowthYear")?.value);
+    setData(data);
+  }
   // -----------------------
   // Stocks + Dividends
   // -----------------------
@@ -1939,6 +2071,8 @@ for (const x of list) {
 
     $("btnSaveBancoPessoal")?.addEventListener("click", saveBancoPessoal);
     if ($("btnSaveFiGoalMonth")) $("btnSaveFiGoalMonth").addEventListener("click", saveFiGoalMonth);
+        if ($("btnSaveFiAssumedGrowthYear")) $("btnSaveFiAssumedGrowthYear").addEventListener("click", saveFiAssumedGrowthYear);
+        if ($("btnCalcFireAccel")) $("btnCalcFireAccel").addEventListener("click", renderFireAccelerationMeter);
 
     // Stocks
     $("stAdd")?.addEventListener("click", () => upsertStock({
