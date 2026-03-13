@@ -458,6 +458,35 @@
                 </div>
               </div>
             </div>
+            <div class="col-12">
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">Progresso para independência financeira (FIRE)</div>
+    <div class="text-secondary small">Progresso mensal em direção ao objetivo</div>
+    <div style="height:280px; margin-top:10px;">
+      <canvas id="gxChartFireProgress"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="col-12">
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">Rendimento passivo vs objetivo FIRE</div>
+    <div class="text-secondary small">Comparação mensal</div>
+    <div style="height:280px; margin-top:10px;">
+      <canvas id="gxChartFireIncome"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="col-12">
+  <div class="bg-white border rounded p-3">
+    <div class="fw-semibold">FIRE Trajectory</div>
+    <div class="text-secondary small">Histórico + projeção até atingir o objetivo</div>
+    <div style="height:300px; margin-top:10px;">
+      <canvas id="gxChartFireTrajectory"></canvas>
+    </div>
+  </div>
+</div>
           </div>
 
                    <div class="small text-secondary mt-3">
@@ -1036,6 +1065,202 @@ const totalSeries = months.map(m => m >= currentMonth ? (divMonth + p2pMonth + f
           options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (v) => euro(v) } } } }
         }));
       }
+
+    // FIRE — progresso histórico
+const ctxFireProgress = $("gxChartFireProgress")?.getContext("2d");
+
+if (ctxFireProgress) {
+  const histData = safeJSON(HIST_KEY, null);
+
+  if (histData && histData.months) {
+    const months = Object.keys(histData.months)
+      .filter(m => /^\d{4}-\d{2}$/.test(m))
+      .sort((a, b) => a.localeCompare(b));
+
+    const firePct = months.map(m => {
+      const fire = histData.months[m]?.snapshot?.fire;
+      return num(fire?.fiProgressPct || 0);
+    });
+
+    charts.push(new Chart(ctxFireProgress, {
+      type: "line",
+      data: {
+        labels: months,
+        datasets: [{
+          label: "Progresso FIRE (%)",
+          data: firePct,
+          tension: 0.25
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => v + "%"
+            }
+          }
+        }
+      }
+    }));
+  }
+}
+
+
+// FIRE — rendimento passivo vs objetivo
+const ctxFireIncome = $("gxChartFireIncome")?.getContext("2d");
+
+if (ctxFireIncome) {
+  const histData = safeJSON(HIST_KEY, null);
+
+  if (histData && histData.months) {
+    const months = Object.keys(histData.months)
+      .filter(m => /^\d{4}-\d{2}$/.test(m))
+      .sort((a, b) => a.localeCompare(b));
+
+    const passive = months.map(m => {
+      const fire = histData.months[m]?.snapshot?.fire;
+      return num(fire?.passiveIncomeMonth || 0);
+    });
+
+    const goal = months.map(m => {
+      const fire = histData.months[m]?.snapshot?.fire;
+      return num(fire?.fiGoalMonth || 0);
+    });
+
+    charts.push(new Chart(ctxFireIncome, {
+      type: "line",
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: "Rendimento passivo mensal",
+            data: passive,
+            tension: 0.25
+          },
+          {
+            label: "Objetivo FIRE",
+            data: goal,
+            borderDash: [6, 6],
+            tension: 0.25
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => euro(v)
+            }
+          }
+        }
+      }
+    }));
+  }
+}
+
+// FIRE — trajetória futura até ao objetivo
+const ctxFireTrajectory = $("gxChartFireTrajectory")?.getContext("2d");
+
+if (ctxFireTrajectory) {
+  const histData = safeJSON(HIST_KEY, null);
+
+  if (histData && histData.months) {
+    const histMonths = Object.keys(histData.months)
+      .filter(m => /^\d{4}-\d{2}$/.test(m))
+      .sort((a, b) => a.localeCompare(b));
+
+    const passiveHist = histMonths.map(m => {
+      const fire = histData.months[m]?.snapshot?.fire;
+      return num(fire?.passiveIncomeMonth || 0);
+    });
+
+    const goalHist = histMonths.map(m => {
+      const fire = histData.months[m]?.snapshot?.fire;
+      return num(fire?.fiGoalMonth || 0);
+    });
+
+    const lastPassive = passiveHist.length ? passiveHist[passiveHist.length - 1] : 0;
+    const lastGoal = goalHist.length ? goalHist[goalHist.length - 1] : 0;
+    const firstPassive = passiveHist.length ? passiveHist[0] : 0;
+    const monthsDiff = histMonths.length - 1;
+
+    let growthRateMonth = 0;
+    if (histMonths.length >= 2 && firstPassive > 0 && lastPassive > 0 && monthsDiff > 0) {
+      growthRateMonth = Math.pow(lastPassive / firstPassive, 1 / monthsDiff) - 1;
+    }
+
+    const labels = [...histMonths];
+    const histSeries = [...passiveHist];
+    const projectionSeries = new Array(histMonths.length).fill(null);
+    const goalSeries = [...goalHist];
+
+    if (lastGoal > 0) {
+      let projected = lastPassive;
+      let d = histMonths.length
+        ? new Date(histMonths[histMonths.length - 1] + "-01")
+        : new Date();
+
+      let guard = 0;
+
+      while (projected < lastGoal && guard < 180) {
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+        if (growthRateMonth > 0) {
+          projected = projected * (1 + growthRateMonth);
+        }
+
+        labels.push(ym);
+        histSeries.push(null);
+        projectionSeries.push(projected);
+        goalSeries.push(lastGoal);
+
+        guard++;
+      }
+    }
+
+    charts.push(new Chart(ctxFireTrajectory, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Histórico",
+            data: histSeries,
+            tension: 0.25
+          },
+          {
+            label: "Projeção",
+            data: projectionSeries,
+            tension: 0.25,
+            borderDash: [8, 4]
+          },
+          {
+            label: "Objetivo FIRE",
+            data: goalSeries,
+            tension: 0,
+            borderDash: [4, 4]
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => euro(v)
+            }
+          }
+        }
+      }
+    }));
+  }
+}
             // 12) Ranking ROI do portefólio
       const roiTable = $("gxRoiTable");
       if (roiTable) {

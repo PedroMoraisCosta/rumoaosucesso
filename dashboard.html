@@ -248,9 +248,85 @@
                 <div class="small text-secondary mt-2">
                   Nota: isto é uma estimativa anual (run-rate). Não é “realizado” automaticamente.
                 </div>
-              </div>
-            </div>
-          </div>
+                <hr class="my-3"/>
+
+<div class="border rounded p-3 bg-white">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="fw-semibold">Progresso para independência financeira</div>
+    <div class="small text-secondary">Baseado no rendimento passivo mensal estimado</div>
+  </div>
+
+  <div class="row g-3 mt-1 align-items-end">
+    <div class="col-12 col-md-4">
+      <label class="form-label">Objetivo mensal (€)</label>
+      <input id="inpFiGoalMonth" type="number" step="0.01" class="form-control" placeholder="ex: 2000">
+    </div>
+
+    <div class="col-12 col-md-4">
+      <button id="btnSaveFiGoalMonth" class="btn btn-primary w-100" type="button">Guardar objetivo</button>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="text-secondary small">Falta atingir</div>
+      <div class="fs-4 fw-bold" id="fiMissingMonth">0,00 €</div>
+    </div>
+  </div>
+
+  <hr class="my-3"/>
+
+  <div class="row g-3">
+    <div class="col-12 col-md-4">
+      <div class="text-secondary small">Atual (estimado / mês)</div>
+      <div class="fs-4 fw-bold" id="fiCurrentMonth">0,00 €</div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="text-secondary small">Objetivo</div>
+      <div class="fs-4 fw-bold" id="fiGoalMonth">0,00 €</div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="text-secondary small">Progresso</div>
+      <div class="fs-4 fw-bold" id="fiProgressPct">0,00%</div>
+    </div>
+  </div>
+
+    <div class="mt-3">
+    <div class="progress" role="progressbar" aria-label="Progresso FIRE" aria-valuemin="0" aria-valuemax="100">
+      <div id="fiProgressBar" class="progress-bar" style="width: 0%">0%</div>
+    </div>
+  </div>
+</div>
+<div class="card shadow-sm mt-3">
+  <div class="card-body">
+    <h5>🔥 FIRE Radar</h5>
+    <div class="text-secondary small mb-3">
+      Projeção baseada no crescimento histórico do rendimento passivo
+    </div>
+
+    <div class="row g-3">
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Crescimento anual</div>
+        <div class="fs-5 fw-bold" id="fiGrowthYear">—</div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Falta atingir</div>
+        <div class="fs-5 fw-bold" id="fiGapMonth">—</div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Anos até FIRE</div>
+        <div class="fs-5 fw-bold" id="fiYearsToFire">—</div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <div class="text-secondary small">Ano estimado FIRE</div>
+        <div class="fs-5 fw-bold" id="fiFireYear">—</div>
+      </div>
+    </div>
+  </div>
+</div>
         </section>
 
         <!-- SECTION: ACOES + DIVIDENDOS -->
@@ -1168,7 +1244,23 @@
           <div class="card shadow-sm mb-3">
             <div class="card-body">
               <h5>Gráficos</h5>
-              <div class="text-secondary">Em breve.</div>
+              <div class="text-secondary small mb-3">
+Progresso para independência financeira (FIRE)
+</div>
+
+<div style="height:300px;">
+<canvas id="gxChartFireProgress"></canvas>
+</div>
+
+<hr class="my-4">
+
+<div class="text-secondary small mb-3">
+Rendimento passivo mensal vs objetivo FIRE
+</div>
+
+<div style="height:300px;">
+<canvas id="gxChartFireIncome"></canvas>
+</div>
             </div>
           </div>
         </section>

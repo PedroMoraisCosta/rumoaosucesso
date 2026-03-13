@@ -146,29 +146,82 @@
 
   // Snapshot mensal: guardamos investido e atual
   function buildSnapshotFromData(data) {
-    const st = calcStocks(data);
-    const cr = calcCrypto(data);
-    const p2 = calcP2P(data);
-    const fd = calcFunds(data);
+  const st = calcStocks(data);
+  const cr = calcCrypto(data);
+  const p2 = calcP2P(data);
+  const fd = calcFunds(data);
+  const dv = calcDividendsTotal(data);
 
-    const banco = safeNum(data.patrimonio?.bancoPessoal);
+  const banco = safeNum(data.patrimonio?.bancoPessoal);
 
-    const acoesAtual = st.current;
-    const criptoAtual = cr.current;
-    const p2pFinal = p2.finals;
-    const fundosTotal = fd.total;
+  const acoesAtual = st.current;
+  const criptoAtual = cr.current;
+  const p2pFinal = p2.finals;
+  const fundosTotal = fd.total;
 
-    const patrimonioTotal = banco + acoesAtual + criptoAtual + p2pFinal + fundosTotal;
+  const patrimonioTotal = banco + acoesAtual + criptoAtual + p2pFinal + fundosTotal;
 
-    return {
-      banco,
-      acoes: { invested: st.invested, current: st.current, profit: st.profit, pct: st.pct },
-      cripto: { invested: cr.invested, current: cr.current, profit: cr.profit, pct: cr.pct },
-      p2p: { invested: p2.invested, finals: p2.finals, profit: p2.profit, avgPct: p2.avgPct, profitPerYear: p2.profitPerYear },
-      fundos: { total: fd.total, yearProfit: fd.yearProfit, avgRate: fd.avgRate },
-      totals: { acoesAtual, criptoAtual, p2pFinal, fundosTotal, patrimonioTotal }
-    };
+  const passiveIncomeAnnual = dv.year + p2.profitPerYear + fd.yearProfit;
+  const passiveIncomeMonth = passiveIncomeAnnual / 12;
+
+  let passiveIncomeRealMonth = 0;
+  if (window.LEDGER && typeof window.LEDGER.getPassiveIncomeMonth === "function") {
+    passiveIncomeRealMonth = safeNum(window.LEDGER.getPassiveIncomeMonth());
   }
+
+  const fiGoalMonth = safeNum(data.patrimonio?.fiGoalMonth);
+  const fiProgressPct = fiGoalMonth > 0
+    ? Math.max(0, Math.min(100, (passiveIncomeMonth / fiGoalMonth) * 100))
+    : 0;
+
+  return {
+    banco,
+
+    acoes: {
+      invested: st.invested,
+      current: st.current,
+      profit: st.profit,
+      pct: st.pct
+    },
+
+    cripto: {
+      invested: cr.invested,
+      current: cr.current,
+      profit: cr.profit,
+      pct: cr.pct
+    },
+
+    p2p: {
+      invested: p2.invested,
+      finals: p2.finals,
+      profit: p2.profit,
+      avgPct: p2.avgPct,
+      profitPerYear: p2.profitPerYear
+    },
+
+    fundos: {
+      total: fd.total,
+      yearProfit: fd.yearProfit,
+      avgRate: fd.avgRate
+    },
+
+    fire: {
+      passiveIncomeAnnual,
+      passiveIncomeMonth,
+      passiveIncomeRealMonth,
+      fiGoalMonth,
+      fiProgressPct
+    },
+
+    totals: {
+      acoesAtual,
+      criptoAtual,
+      p2pFinal,
+      fundosTotal,
+      patrimonioTotal
+    }
+  };
+}
 
   function historySnapshot(monthKey) {
     const m = isValidMonthKey(monthKey) ? monthKey : monthKeyFromDate(new Date());
@@ -781,6 +834,11 @@ function wipeAllData() {
     const totalRecorrenteAno = dv.year + p2.profitPerYear + fd.yearProfit;
     const totalRecorrenteMes = totalRecorrenteAno / 12;
     const totalRecorrenteDia = totalRecorrenteAno / 365.25;
+    const fiGoalMonth = safeNum(data.patrimonio?.fiGoalMonth);
+    const fiCurrentMonth = totalRecorrenteMes;
+    const fiMissingMonth = Math.max(0, fiGoalMonth - fiCurrentMonth);
+    const fiProgressPct = fiGoalMonth > 0 ? (fiCurrentMonth / fiGoalMonth) * 100 : 0;
+    const fiProgressPctClamped = Math.max(0, Math.min(100, fiProgressPct));
 
     if ($("plTotalInvestido")) $("plTotalInvestido").textContent = fmtEUR(totalInvestidoAtivos);
     if ($("plAtivosAtuais")) $("plAtivosAtuais").textContent = fmtEUR(ativosAtuais);
@@ -807,12 +865,109 @@ function wipeAllData() {
     if ($("plFdAno")) $("plFdAno").textContent = fmtEUR(fd.yearProfit);
     if ($("plFdMes")) $("plFdMes").textContent = fmtEUR(fd.monthProfit);
     if ($("plFdDia")) $("plFdDia").textContent = fmtEUR(fd.dayProfit);
-  }
+        if ($("inpFiGoalMonth")) $("inpFiGoalMonth").value = fiGoalMonth ? String(fiGoalMonth) : "";
+    if ($("fiCurrentMonth")) $("fiCurrentMonth").textContent = fmtEUR(fiCurrentMonth);
+    if ($("fiGoalMonth")) $("fiGoalMonth").textContent = fmtEUR(fiGoalMonth);
+    if ($("fiMissingMonth")) $("fiMissingMonth").textContent = fmtEUR(fiMissingMonth);
+    if ($("fiProgressPct")) $("fiProgressPct").textContent = fmtPct(fiProgressPct);
 
+    const fiBar = $("fiProgressBar");
+    if (fiBar) {
+      fiBar.style.width = `${fiProgressPctClamped}%`;
+      fiBar.textContent = `${fiProgressPctClamped.toFixed(1)}%`;
+      fiBar.setAttribute("aria-valuenow", String(fiProgressPctClamped.toFixed(1)));
+    }
+        renderFireRadar();
+  }
+  function renderFireRadar() {
+    const hist = getHistory();
+    const months = Object.keys(hist.months || {})
+      .filter(isValidMonthKey)
+      .sort((a, b) => a.localeCompare(b));
+
+    const setTxt = (id, txt) => {
+      if ($(id)) $(id).textContent = txt;
+    };
+
+    if (months.length < 2) {
+      setTxt("fiGrowthYear", "—");
+      setTxt("fiGapMonth", "—");
+      setTxt("fiYearsToFire", "—");
+      setTxt("fiFireYear", "—");
+      return;
+    }
+
+    const firstMonth = months[0];
+    const lastMonth = months[months.length - 1];
+
+    const firstPassive = safeNum(hist.months[firstMonth]?.snapshot?.fire?.passiveIncomeMonth);
+    const lastPassive = safeNum(hist.months[lastMonth]?.snapshot?.fire?.passiveIncomeMonth);
+    const fiGoal = safeNum(hist.months[lastMonth]?.snapshot?.fire?.fiGoalMonth);
+
+    const gap = Math.max(0, fiGoal - lastPassive);
+    setTxt("fiGapMonth", fmtEUR(gap));
+
+    if (firstPassive <= 0 || lastPassive <= 0 || fiGoal <= 0) {
+      setTxt("fiGrowthYear", "—");
+      setTxt("fiYearsToFire", "—");
+      setTxt("fiFireYear", "—");
+      return;
+    }
+
+    const monthsDiff = months.length - 1;
+    if (monthsDiff <= 0) {
+      setTxt("fiGrowthYear", "—");
+      setTxt("fiYearsToFire", "—");
+      setTxt("fiFireYear", "—");
+      return;
+    }
+
+    const growthRateMonth = Math.pow(lastPassive / firstPassive, 1 / monthsDiff) - 1;
+    const growthRateYear = Math.pow(1 + growthRateMonth, 12) - 1;
+
+    if (!Number.isFinite(growthRateYear)) {
+      setTxt("fiGrowthYear", "—");
+    } else {
+      setTxt("fiGrowthYear", fmtPct(growthRateYear * 100));
+    }
+
+    if (lastPassive >= fiGoal) {
+      setTxt("fiYearsToFire", "Atingido");
+      setTxt("fiFireYear", String(new Date().getFullYear()));
+      return;
+    }
+
+    if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
+      setTxt("fiYearsToFire", "Sem projeção");
+      setTxt("fiFireYear", "—");
+      return;
+    }
+
+    const monthsToFire = Math.log(fiGoal / lastPassive) / Math.log(1 + growthRateMonth);
+    const yearsToFire = monthsToFire / 12;
+
+    if (!Number.isFinite(yearsToFire) || yearsToFire < 0) {
+      setTxt("fiYearsToFire", "Sem projeção");
+      setTxt("fiFireYear", "—");
+      return;
+    }
+
+    const fireYear = new Date().getFullYear() + yearsToFire;
+
+    setTxt("fiYearsToFire", `${yearsToFire.toFixed(1)} anos`);
+    setTxt("fiFireYear", String(Math.round(fireYear)));
+  }
+  
   function saveBancoPessoal() {
     const data = getData();
     data.patrimonio = data.patrimonio || {};
     data.patrimonio.bancoPessoal = safeNum($("inpBancoPessoal")?.value);
+    setData(data);
+  }
+    function saveFiGoalMonth() {
+    const data = getData();
+    data.patrimonio = data.patrimonio || {};
+    data.patrimonio.fiGoalMonth = safeNum($("inpFiGoalMonth")?.value);
     setData(data);
   }
 
@@ -1783,6 +1938,7 @@ for (const x of list) {
     $("btnLogout")?.addEventListener("click", logout);
 
     $("btnSaveBancoPessoal")?.addEventListener("click", saveBancoPessoal);
+    if ($("btnSaveFiGoalMonth")) $("btnSaveFiGoalMonth").addEventListener("click", saveFiGoalMonth);
 
     // Stocks
     $("stAdd")?.addEventListener("click", () => upsertStock({
