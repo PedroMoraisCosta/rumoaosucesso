@@ -470,6 +470,15 @@
                   <button class="btn btn-primary" id="stAdd" type="button">Adicionar</button>
                   <button class="btn btn-outline-secondary" id="stCancelEdit" type="button">Cancelar edição</button>
                 </div>
+                <div class="row g-2 mt-3">
+  <div class="col-12 col-md-4">
+    <button id="btnStocksRefreshPrices" type="button" class="btn btn-primary w-100">
+      Atualizar preços ações
+    </button>
+  </div>
+</div>
+
+<div id="stocksRefreshStatus" class="small mt-2 text-secondary"></div>
               </div>
 
              <div class="ras-cbox" data-cbox="stocks">
@@ -641,6 +650,26 @@
                   <button class="btn btn-primary" id="crAdd" type="button">Adicionar</button>
                   <button class="btn btn-outline-secondary" id="crCancelEdit" type="button">Cancelar edição</button>
                 </div>
+                <div class="row g-2 mt-3">
+  <div class="col-12 col-md-5">
+    <label class="form-label">CoinGecko Demo API Key</label>
+    <input id="cgDemoApiKey" type="text" class="form-control" placeholder="cola aqui a tua demo api key">
+  </div>
+
+  <div class="col-12 col-md-3 d-flex align-items-end">
+    <button id="btnSaveCgDemoApiKey" type="button" class="btn btn-outline-primary w-100">
+      Guardar API Key
+    </button>
+  </div>
+
+  <div class="col-12 col-md-4 d-flex align-items-end">
+    <button id="btnCryptoRefreshPrices" type="button" class="btn btn-primary w-100">
+      Atualizar preços cripto
+    </button>
+  </div>
+</div>
+
+<div id="cryptoRefreshStatus" class="small mt-2 text-secondary"></div>
               </div>
 
               <div class="ras-cbox" data-cbox="crypto">

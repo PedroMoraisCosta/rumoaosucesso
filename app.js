@@ -1103,6 +1103,226 @@ if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
     data.patrimonio.fiAssumedGrowthYear = safeNum($("fiAssumedGrowthYear")?.value);
     setData(data);
   }
+    function saveCgDemoApiKey() {
+    const data = getData();
+    data.meta = data.meta || {};
+    data.meta.cgDemoApiKey = String($("cgDemoApiKey")?.value || "").trim();
+    setData(data);
+    alert("API Key CoinGecko guardada ✅");
+  }
+
+    function getCoinGeckoIdFromSymbol(symbol) {
+    const raw = String(symbol || "").trim().toUpperCase();
+
+    const normalized = raw
+      .replaceAll("-", "")
+      .replaceAll("_", "")
+      .replaceAll(" ", "");
+
+    const map = {
+      BTC: "bitcoin",
+      BITCOIN: "bitcoin",
+
+      ETH: "ethereum",
+      ETHEREUM: "ethereum",
+
+      BNB: "binancecoin",
+      BINANCECOIN: "binancecoin",
+
+      SOL: "solana",
+      SOLANA: "solana",
+
+      XRP: "ripple",
+      RIPPLE: "ripple",
+
+      ADA: "cardano",
+      CARDANO: "cardano",
+
+      DOGE: "dogecoin",
+      DOGECOIN: "dogecoin",
+
+      AVAX: "avalanche-2",
+      AVALANCHE: "avalanche-2",
+      AVALANCHE2: "avalanche-2",
+
+      LINK: "chainlink",
+      CHAINLINK: "chainlink",
+
+      DOT: "polkadot",
+      POLKADOT: "polkadot",
+
+       MATIC: "polygon-ecosystem-token",
+      POL: "polygon-ecosystem-token",
+      POLYGON: "polygon-ecosystem-token",
+      MATICNETWORK: "polygon-ecosystem-token",
+
+      LTC: "litecoin",
+      LITECOIN: "litecoin",
+
+      BCH: "bitcoin-cash",
+      BITCOINCASH: "bitcoin-cash",
+
+      ATOM: "cosmos",
+      COSMOS: "cosmos",
+
+      UNI: "uniswap",
+      UNISWAP: "uniswap",
+
+      APT: "aptos",
+      APTOS: "aptos",
+
+      SUI: "sui",
+
+      ARB: "arbitrum",
+      ARBITRUM: "arbitrum",
+
+      OP: "optimism",
+      OPTIMISM: "optimism",
+
+      NEAR: "near",
+
+      INJ: "injective-protocol",
+      INJECTIVE: "injective-protocol",
+      INJECTIVEPROTOCOL: "injective-protocol",
+
+      PEPE: "pepe",
+
+      SHIB: "shiba-inu",
+      SHIBAINU: "shiba-inu",
+
+      ETC: "ethereum-classic",
+      ETHEREUMCLASSIC: "ethereum-classic",
+
+      XLM: "stellar",
+      STELLAR: "stellar",
+
+      HBAR: "hedera-hashgraph",
+      HEDERA: "hedera-hashgraph",
+      HEDERAHASHGRAPH: "hedera-hashgraph",
+
+      ICP: "internet-computer",
+      INTERNETCOMPUTER: "internet-computer",
+
+      RNDR: "render-token",
+      RENDER: "render-token",
+      RENDERTOKEN: "render-token",
+
+      TRX: "tron",
+      TRON: "tron",
+
+      TON: "the-open-network",
+      THEOPENNETWORK: "the-open-network"
+    };
+
+    return map[normalized] || null;
+  }
+
+  function setCryptoRefreshStatus(msg, isError = false) {
+    const el = $("cryptoRefreshStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = isError
+      ? "small mt-2 text-danger"
+      : "small mt-2 text-secondary";
+  }
+
+  async function updateCryptoPrices() {
+    const data = getData();
+    const apiKey = String(data.meta?.cgDemoApiKey || "").trim();
+
+    if (!apiKey) {
+      setCryptoRefreshStatus("Falta a CoinGecko Demo API Key.", true);
+      alert("Falta a CoinGecko Demo API Key.");
+      return;
+    }
+
+    const rows = Array.isArray(data.crypto) ? data.crypto : [];
+    if (!rows.length) {
+      setCryptoRefreshStatus("Não tens criptomoedas registadas.", true);
+      alert("Não tens criptomoedas registadas.");
+      return;
+    }
+
+    const rowsWithIds = rows.map(row => {
+      const symbol = String(row.coin || "").trim().toUpperCase();
+      const cgId = getCoinGeckoIdFromSymbol(symbol);
+      return { row, symbol, cgId };
+    });
+
+    const ids = [...new Set(rowsWithIds.map(x => x.cgId).filter(Boolean))];
+    if (!ids.length) {
+      setCryptoRefreshStatus("Nenhuma moeda desta lista está mapeada para CoinGecko.", true);
+      alert("Nenhuma moeda desta lista está mapeada para CoinGecko.");
+      return;
+    }
+
+    try {
+      setCryptoRefreshStatus("A atualizar preços cripto...");
+
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=eur`;
+
+      const res = await fetch(url, {
+        headers: {
+          "x-cg-demo-api-key": apiKey
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`CoinGecko HTTP ${res.status}`);
+      }
+
+      const priceData = await res.json();
+
+      let updated = 0;
+      const failedSymbols = [];
+
+      data.crypto = rows.map(row => {
+        const symbol = String(row.coin || "").trim().toUpperCase();
+        const cgId = getCoinGeckoIdFromSymbol(symbol);
+
+        if (!cgId) {
+          failedSymbols.push(symbol);
+          return row;
+        }
+
+        const newPrice = Number(priceData?.[cgId]?.eur);
+
+        if (!Number.isFinite(newPrice) || newPrice <= 0) {
+          failedSymbols.push(symbol);
+          return row;
+        }
+
+        updated++;
+        return {
+          ...row,
+          price: newPrice
+        };
+      });
+
+      setData(data);
+
+      const uniqueFailed = [...new Set(failedSymbols)];
+
+      if (uniqueFailed.length) {
+        setCryptoRefreshStatus(
+          `Atualizadas: ${updated}. Falharam: ${uniqueFailed.join(", ")}. Podes atualizar essas manualmente no campo "Preço atual".`,
+          true
+        );
+      } else {
+        setCryptoRefreshStatus(`Atualizadas com sucesso: ${updated}.`);
+      }
+
+      alert(
+        uniqueFailed.length
+          ? `Preços atualizados ✅\nFalharam: ${uniqueFailed.join(", ")}\nPodes atualizar essas manualmente no campo "Preço atual".`
+          : `Preços cripto atualizados ✅ | atualizadas: ${updated}`
+      );
+    } catch (err) {
+      console.error("[updateCryptoPrices] erro:", err);
+      setCryptoRefreshStatus("Falha ao atualizar preços cripto. Verifica a API key e a consola.", true);
+      alert("Falha ao atualizar preços cripto. Verifica a API key e a consola.");
+    }
+  }
   // -----------------------
   // Stocks + Dividends
   // -----------------------
@@ -1582,6 +1802,7 @@ for (const d of list) {
     const data = getData();
     const c = calcCrypto(data);
 
+    if ($("cgDemoApiKey")) $("cgDemoApiKey").value = data.meta?.cgDemoApiKey || "";
     if ($("crTotalInvest")) $("crTotalInvest").textContent = fmtEUR(c.invested);
     if ($("crTotalCurrent")) $("crTotalCurrent").textContent = fmtEUR(c.current);
     if ($("crTotalProfit")) $("crTotalProfit").textContent = fmtEUR(c.profit);
@@ -2104,7 +2325,8 @@ for (const x of list) {
     }));
     $("crCancelEdit")?.addEventListener("click", clearCryptoForm);
     $("btnCryptoWipe")?.addEventListener("click", wipeCryptoAll);
-
+    $("btnSaveCgDemoApiKey")?.addEventListener("click", saveCgDemoApiKey);
+    $("btnCryptoRefreshPrices")?.addEventListener("click", updateCryptoPrices);
     // P2P
     $("p2Add")?.addEventListener("click", () => upsertP2P({
       platform: $("p2Platform")?.value,
