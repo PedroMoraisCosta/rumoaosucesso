@@ -45,6 +45,7 @@
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }
+  
 
   function confirmDanger(msg) {
     return window.confirm(msg);
@@ -1103,6 +1104,13 @@ if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
     data.patrimonio.fiAssumedGrowthYear = safeNum($("fiAssumedGrowthYear")?.value);
     setData(data);
   }
+    function saveStocksApiKey() {
+    const data = getData();
+    data.meta = data.meta || {};
+    data.meta.stocksApiKey = String($("stocksApiKey")?.value || "").trim();
+    setData(data);
+    setStocksRefreshStatus("API Key das ações guardada.");
+  }
     function saveCgDemoApiKey() {
     const data = getData();
     data.meta = data.meta || {};
@@ -1323,6 +1331,158 @@ if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
       alert("Falha ao atualizar preços cripto. Verifica a API key e a consola.");
     }
   }
+    function getApiTickerFromStockName(symbol) {
+    const raw = String(symbol || "").trim().toUpperCase();
+
+    const normalized = raw
+      .replaceAll("-", "")
+      .replaceAll("_", "")
+      .replaceAll(".", "")
+      .replaceAll(" ", "")
+      .replaceAll("&", "AND");
+
+    const map = {
+      META: "META",
+      ASML: "ASML.AS",
+      SAMSUNG: "005930.KS",
+      ALPHABET: "GOOGL",
+      GOOGLE: "GOOGL",
+      TSMC: "TSM",
+      SIEMENS: "SIE.DE",
+      ROBOTICSANDIA: "BOTZ",
+      ROBOTICSAI: "BOTZ",
+      LEONARDO: "LDO.MI",
+      BAE: "BA.L",
+      BAIDU: "BIDU",
+      TESLA: "TSLA",
+      NVIDEA: "NVDA",
+      NVIDIA: "NVDA",
+      NEBIUSGROUPNV: "NBIS",
+      ALIBABA: "BABA",
+      RHEINMETALL: "RHM.DE",
+      INTUITIVE: "ISRG",
+      BROADCOM: "AVGO",
+      VISA: "V",
+      CROWDSTRIKE: "CRWD",
+      IBM: "IBM",
+      QUALCOMM: "QCOM",
+      UBER: "UBER",
+      AMAZON: "AMZN",
+      IONQ: "IONQ",
+      MICROSOFT: "MSFT",
+      FIGMA: "FIG",
+      ORACLE: "ORCL",
+      AMD: "AMD",
+      PALANTIR: "PLTR",
+      PROCTERANDGAMBLECO: "PG",
+      PROCTERANDGAMBLE: "PG"
+    };
+
+    return map[normalized] || raw;
+  }
+
+  function setStocksRefreshStatus(msg, isError = false) {
+    const el = $("stocksRefreshStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.className = isError
+      ? "small mt-2 text-danger"
+      : "small mt-2 text-secondary";
+  }
+
+ async function updateStockPrices() {
+  const data = getData();
+  const rows = Array.isArray(data.stocks) ? data.stocks : [];
+
+  if (!rows.length) {
+    setStocksRefreshStatus("Não tens ações registadas.", true);
+    alert("Não tens ações registadas.");
+    return;
+  }
+
+  const apiKey = String(data.meta?.stocksApiKey || "").trim();
+
+  if (!apiKey) {
+    setStocksRefreshStatus("Falta a API Key da Alpha Vantage.", true);
+    alert("Falta guardar a API Key da Alpha Vantage.");
+    return;
+  }
+
+  const total = rows.length;
+
+  let startIndex = safeNum(data.meta?.stocksRefreshCursor);
+  if (startIndex < 0 || startIndex >= total) startIndex = 0;
+
+  const row = data.stocks[startIndex];
+  const originalName = String(row.ticker || "").trim().toUpperCase();
+  const apiTicker = getApiTickerFromStockName(originalName);
+
+  setStocksRefreshStatus(`A atualizar a ação ${startIndex + 1} de ${total}: ${originalName}...`);
+
+  let updated = 0;
+  let failed = false;
+
+  try {
+    const url =
+      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(apiTicker)}&apikey=${encodeURIComponent(apiKey)}`;
+
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (json?.Note || json?.Information) {
+      failed = true;
+    } else {
+      const quote = json?.["Global Quote"];
+      const priceRaw = quote?.["05. price"];
+      let finalPrice = Number(priceRaw);
+
+      if (Number.isFinite(finalPrice) && finalPrice > 0) {
+        if (apiTicker === "BA.L") {
+          finalPrice = finalPrice / 100;
+        }
+
+        data.stocks[startIndex] = {
+          ...data.stocks[startIndex],
+          cur: finalPrice
+        };
+
+        updated = 1;
+      } else {
+        failed = true;
+      }
+    }
+  } catch (err) {
+    console.warn("[updateStockPrices] falhou:", originalName, apiTicker, err);
+    failed = true;
+  }
+
+  data.meta = data.meta || {};
+  data.meta.stocksRefreshCursor = (startIndex + 1) % total;
+
+  setData(data);
+
+  const nextStartHuman = data.meta.stocksRefreshCursor + 1;
+  const wrapped = data.meta.stocksRefreshCursor === 0;
+
+  if (failed) {
+    setStocksRefreshStatus(
+      `Falhou: ${originalName}. Próxima ação começa na posição ${nextStartHuman}${wrapped ? " (voltou ao início)" : ""}.`,
+      true
+    );
+
+    alert(
+      `Preço da ação não atualizado.\nFalhou: ${originalName}\nPróxima ação começa na posição ${nextStartHuman}${wrapped ? " (voltou ao início)" : ""}.`
+    );
+  } else {
+    setStocksRefreshStatus(
+      `Atualizada: ${originalName}. Próxima ação começa na posição ${nextStartHuman}${wrapped ? " (voltou ao início)" : ""}.`
+    );
+
+    alert(
+      `Preço da ação atualizado ✅\nAtualizada: ${originalName}\nPróxima ação começa na posição ${nextStartHuman}${wrapped ? " (voltou ao início)" : ""}.`
+    );
+  }
+}
   // -----------------------
   // Stocks + Dividends
   // -----------------------
@@ -1370,6 +1530,9 @@ if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
     if ($("stTotalCurrent")) $("stTotalCurrent").textContent = fmtEUR(st.current);
     if ($("stTotalProfit")) $("stTotalProfit").textContent = fmtEUR(st.profit);
     if ($("stTotalPct")) $("stTotalPct").textContent = fmtPct(st.pct);
+        if ($("stocksApiKey")) {
+      $("stocksApiKey").value = String(data.meta?.stocksApiKey || "");
+    }
 
     const tbody = $("stTable");
     if (!tbody) return;
@@ -2295,7 +2458,7 @@ for (const x of list) {
         if ($("btnSaveFiAssumedGrowthYear")) $("btnSaveFiAssumedGrowthYear").addEventListener("click", saveFiAssumedGrowthYear);
         if ($("btnCalcFireAccel")) $("btnCalcFireAccel").addEventListener("click", renderFireAccelerationMeter);
 
-    // Stocks
+        // Stocks
     $("stAdd")?.addEventListener("click", () => upsertStock({
       ticker: $("stTicker")?.value,
       sector: $("stSector")?.value, // ✅
@@ -2305,6 +2468,8 @@ for (const x of list) {
     }));
     $("stCancelEdit")?.addEventListener("click", clearStockForm);
     $("btnStocksWipe")?.addEventListener("click", wipeStocksAll);
+    $("btnSaveStocksApiKey")?.addEventListener("click", saveStocksApiKey);
+    $("btnStocksRefreshPrices")?.addEventListener("click", updateStockPrices);
 
     // Dividends
     $("dvTicker")?.addEventListener("change", updateDividendQtyAuto);

@@ -470,11 +470,26 @@
                   <button class="btn btn-primary" id="stAdd" type="button">Adicionar</button>
                   <button class="btn btn-outline-secondary" id="stCancelEdit" type="button">Cancelar edição</button>
                 </div>
-                <div class="row g-2 mt-3">
-  <div class="col-12 col-md-4">
-    <button id="btnStocksRefreshPrices" type="button" class="btn btn-primary w-100">
-      Atualizar preços ações
+               <div class="row g-2 mt-3 align-items-end">
+  <div class="col-12 col-md-5">
+    <label class="form-label">Alpha Vantage API Key</label>
+    <input
+      id="stocksApiKey"
+      type="text"
+      class="form-control"
+      placeholder="cola aqui a tua api key">
+  </div>
+
+  <div class="col-12 col-md-3">
+    <button id="btnSaveStocksApiKey" type="button" class="btn btn-outline-primary w-100">
+      Guardar API Key
     </button>
+  </div>
+
+  <div class="col-12 col-md-4">
+   <button id="btnStocksRefreshPrices" type="button" class="btn btn-primary w-100">
+  Atualizar próxima ação
+</button>
   </div>
 </div>
 
