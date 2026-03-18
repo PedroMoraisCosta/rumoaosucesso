@@ -45,7 +45,82 @@
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }
-  
+    function normalizeCurrency(cur) {
+    return String(cur || "EUR").trim().toUpperCase();
+  }
+
+  function getStockFxRatesToEur() {
+    // Taxas simples internas.
+    // Objetivo: bater quase certo com a XTB sem complicar a UI.
+    return {
+      EUR: 1,
+      USD: 0.8628,
+      GBP: 1.16,
+      KRW: 0.00070
+    };
+  }
+
+  function getStockCurrency(row) {
+    const ticker = String(row?.ticker || "").trim().toUpperCase();
+    const apiTicker = getApiTickerFromStockName(ticker);
+
+    if (apiTicker.endsWith(".L")) return "GBP";   // Londres
+    if (apiTicker.endsWith(".KS")) return "KRW";  // Coreia
+    if (apiTicker.endsWith(".AS")) return "EUR";  // Amesterdão
+    if (apiTicker.endsWith(".DE")) return "EUR";  // Alemanha
+    if (apiTicker.endsWith(".MI")) return "EUR";  // Itália
+
+    // Default: USA / ADR / Nasdaq / NYSE / ETFs USA
+    return "USD";
+  }
+
+  function convertToEur(amount, currency) {
+    const value = safeNum(amount);
+    const cur = normalizeCurrency(currency);
+    const rates = getStockFxRatesToEur();
+
+    if (!value) return 0;
+    if (cur === "EUR") return value;
+
+    const rate = safeNum(rates[cur]);
+    if (!rate) return 0;
+
+    return value * rate;
+  }
+
+    function calcStockRow(row) {
+    const qty = safeNum(row?.qty);
+    const avg = safeNum(row?.avg);
+    const cur = safeNum(row?.cur);
+
+    const currency = getStockCurrency(row);
+    const autoRates = getStockFxRatesToEur();
+
+    // prioridade: taxa manual > taxa automática
+    const fxRate = safeNum(row?.fxRateManual) || safeNum(autoRates[currency]) || 0;
+
+    const investedNative = qty * avg;
+    const currentNative = qty * cur;
+
+    // modelo XTB: mesma taxa atual para investido e atual
+    const investedEur = fxRate ? investedNative * fxRate : 0;
+    const currentEur = fxRate ? currentNative * fxRate : 0;
+
+    const profitEur = currentEur - investedEur;
+    const pct = investedEur > 0 ? (profitEur / investedEur) * 100 : 0;
+
+    return {
+      qty,
+      avg,
+      cur,
+      currency,
+      fxRate,
+      invested: investedEur,
+      current: currentEur,
+      profit: profitEur,
+      pct
+    };
+  }
 
   function confirmDanger(msg) {
     return window.confirm(msg);
@@ -705,11 +780,21 @@ function wipeAllData() {
   // -----------------------
   // Calculators
   // -----------------------
-  function calcStocks(data) {
-    const invested = data.stocks.reduce((a, x) => a + safeNum(x.qty) * safeNum(x.avg), 0);
-    const current = data.stocks.reduce((a, x) => a + safeNum(x.qty) * safeNum(x.cur), 0);
+    function calcStocks(data) {
+    const rows = Array.isArray(data.stocks) ? data.stocks : [];
+
+    let invested = 0;
+    let current = 0;
+
+    for (const row of rows) {
+      const r = calcStockRow(row);
+      invested += r.invested;
+      current += r.current;
+    }
+
     const profit = current - invested;
     const pct = invested > 0 ? (profit / invested) * 100 : 0;
+
     return { invested, current, profit, pct };
   }
 
@@ -1489,24 +1574,49 @@ if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
   let stEditingId = null;
   let dvEditingId = null;
 
-  function upsertStock(row) {
+   function upsertStock(row) {
     const data = getData();
     const ticker = String(row.ticker || "").trim().toUpperCase();
-    const sector = String(row.sector || "").trim(); // ✅
+    const sector = String(row.sector || "").trim();
+
     if (!ticker) return alert("Ticker inválido.");
+
     const qty = safeNum(row.qty);
     const avg = safeNum(row.avg);
     const cur = safeNum(row.cur);
+    const fxRateManual = safeNum(row.fxRateManual);
+
     if (qty <= 0) return alert("Nº ações tem de ser > 0.");
     if (avg <= 0 || cur <= 0) return alert("Preço médio e atual têm de ser > 0.");
 
     if (stEditingId) {
       const idx = data.stocks.findIndex(x => x.id === stEditingId);
-      if (idx >= 0) data.stocks[idx] = { ...data.stocks[idx], ticker, sector, qty, avg, cur }; // ✅ sector
+
+      if (idx >= 0) {
+        data.stocks[idx] = {
+          ...data.stocks[idx],
+          ticker,
+          sector,
+          qty,
+          avg,
+          cur,
+          fxRateManual
+        };
+      }
+
       stEditingId = null;
     } else {
       const id = cryptoRandomId();
-      data.stocks.push({ id, ticker, sector, qty, avg, cur }); // ✅ sector
+
+      data.stocks.push({
+        id,
+        ticker,
+        sector,
+        qty,
+        avg,
+        cur,
+        fxRateManual
+      });
     }
 
     setData(data);
@@ -1519,6 +1629,7 @@ if (!Number.isFinite(growthRateMonth) || growthRateMonth <= 0) {
     if ($("stQty")) $("stQty").value = "";
     if ($("stAvg")) $("stAvg").value = "";
     if ($("stCur")) $("stCur").value = "";
+    if ($("stFxRateManual")) $("stFxRateManual").value = "";
     stEditingId = null;
   }
 
@@ -1569,22 +1680,24 @@ if (window.__stocksSortKey) {
       bv = safeNum(b.cur);
     }
 
+       if (key === "current") {
+      av = calcStockRow(a).current;
+      bv = calcStockRow(b).current;
+    }
+
     if (key === "invested") {
-      av = safeNum(a.qty) * safeNum(a.avg);
-      bv = safeNum(b.qty) * safeNum(b.avg);
+      av = calcStockRow(a).invested;
+      bv = calcStockRow(b).invested;
     }
 
     if (key === "profit") {
-      av = safeNum(a.qty) * safeNum(a.cur) - safeNum(a.qty) * safeNum(a.avg);
-      bv = safeNum(b.qty) * safeNum(b.cur) - safeNum(b.qty) * safeNum(b.avg);
+      av = calcStockRow(a).profit;
+      bv = calcStockRow(b).profit;
     }
 
     if (key === "pct") {
-      const ai = safeNum(a.qty) * safeNum(a.avg);
-      const bi = safeNum(b.qty) * safeNum(b.avg);
-
-      av = ai > 0 ? ((safeNum(a.qty) * safeNum(a.cur) - ai) / ai) * 100 : 0;
-      bv = bi > 0 ? ((safeNum(b.qty) * safeNum(b.cur) - bi) / bi) * 100 : 0;
+      av = calcStockRow(a).pct;
+      bv = calcStockRow(b).pct;
     }
 
     return dir * (av - bv);
@@ -1592,20 +1705,24 @@ if (window.__stocksSortKey) {
 }
 
 for (const x of list) {
-      const invested = safeNum(x.qty) * safeNum(x.avg);
-      const current = safeNum(x.qty) * safeNum(x.cur);
-      const profit = current - invested;
-      const pct = invested > 0 ? (profit / invested) * 100 : 0;
+      const rowCalc = calcStockRow(x);
+      const invested = rowCalc.invested;
+      const current = rowCalc.current;
+      const profit = rowCalc.profit;
+      const pct = rowCalc.pct;
 
       const tr = document.createElement("tr");
-      tr.innerHTML = `
+              tr.innerHTML = `
         <td class="fw-semibold">${escapeHtml(x.ticker)}</td>
         <td class="text-end">${safeNum(x.qty)}</td>
         <td class="text-end">${safeNum(x.avg)}</td>
         <td class="text-end">${safeNum(x.cur)}</td>
+        <td class="text-end">${fmtEUR(current)}</td>
         <td class="text-end">${fmtEUR(invested)}</td>
         <td class="text-end">${fmtEUR(profit)}</td>
-        <td class="text-end">${fmtPct(pct)}</td>
+        <td class="text-end ${pct >= 0 ? 'text-success' : 'text-danger'}">
+  ${fmtPct(pct)}
+</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
           <button class="btn btn-sm btn-outline-danger" data-act="del" data-id="${x.id}" type="button">Apagar</button>
@@ -1627,11 +1744,12 @@ for (const x of list) {
           const row = data2.stocks.find(r => r.id === id);
           if (!row) return;
           stEditingId = id;
-          if ($("stTicker")) $("stTicker").value = row.ticker;
-          if ($("stSector")) $("stSector").value = row.sector || ""; // ✅
+                    if ($("stTicker")) $("stTicker").value = row.ticker;
+          if ($("stSector")) $("stSector").value = row.sector || "";
           if ($("stQty")) $("stQty").value = row.qty;
           if ($("stAvg")) $("stAvg").value = row.avg;
           if ($("stCur")) $("stCur").value = row.cur;
+          if ($("stFxRateManual")) $("stFxRateManual").value = row.fxRateManual || "";
         }
 
         if (act === "del") {
@@ -1836,7 +1954,7 @@ for (const d of list) {
       const stRow = data.stocks.find(s => s.ticker === d.ticker);
       const qty = stRow ? safeNum(stRow.qty) : 0;
       const yearPerShare = safeNum(d.yearPerShare);
-      const price = stRow ? safeNum(stRow.cur) : 0;
+            const price = stRow ? calcStockRow(stRow).cur : 0;
       const yieldPct = price > 0 ? (yearPerShare / price) * 100 : 0;
       const receivedYear = qty * yearPerShare;
       const receivedMonth = receivedYear / 12;
@@ -2041,7 +2159,7 @@ for (const x of list) {
     <td class="text-end">${safeNum(x.qty)}</td>
     <td class="text-end">${safeNum(x.price)}</td>
     <td class="text-end">${fmtEUR(current)}</td>
-    <td class="text-end">${fmtEUR(profit)}</td>
+    <td class="text-end ${profit >= 0 ? 'text-success' : 'text-danger'}">${fmtEUR(profit)}</td>
     <td class="text-end">${fmtPct(pct)}</td>
     <td class="text-end">
       <button class="btn btn-sm btn-outline-secondary me-1" data-act="edit" data-id="${x.id}" type="button">Editar</button>
@@ -2459,12 +2577,13 @@ for (const x of list) {
         if ($("btnCalcFireAccel")) $("btnCalcFireAccel").addEventListener("click", renderFireAccelerationMeter);
 
         // Stocks
-    $("stAdd")?.addEventListener("click", () => upsertStock({
+        $("stAdd")?.addEventListener("click", () => upsertStock({
       ticker: $("stTicker")?.value,
-      sector: $("stSector")?.value, // ✅
+      sector: $("stSector")?.value,
       qty: $("stQty")?.value,
       avg: $("stAvg")?.value,
-      cur: $("stCur")?.value
+      cur: $("stCur")?.value,
+      fxRateManual: $("stFxRateManual")?.value
     }));
     $("stCancelEdit")?.addEventListener("click", clearStockForm);
     $("btnStocksWipe")?.addEventListener("click", wipeStocksAll);
