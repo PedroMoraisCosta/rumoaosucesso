@@ -786,7 +786,7 @@ body.sidebar-collapsed #btnThemeToggleDesktop{
   padding: 0 !important;
   font-size: 0 !important;
   overflow: hidden;
-  margin-left: -4px; /* 🔧 empurra ligeiramente para a esquerda */
+  margin-left: -6px; /* 🔧 empurra ligeiramente para a esquerda */
 }
 
 /* ícone modo claro */

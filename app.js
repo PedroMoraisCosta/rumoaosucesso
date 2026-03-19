@@ -328,18 +328,7 @@
     alert("Histórico apagado ✅");
   }
 
-  function historyExportJSON() {
-    const hist = getHistory();
-    const blob = new Blob([JSON.stringify(hist, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `rumo-ao-sucesso-historico-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
+  
 
   // -----------------------
   // Chart.js — Histórico
@@ -463,7 +452,6 @@
     const inpMonth = $("histMonth");
     const btnNow = $("btnHistSnapshotNow");
     const btnMonth = $("btnHistSnapshotMonth");
-    const btnExport = $("btnHistExport");
     const btnWipe = $("btnHistWipe");
 
     if (btnNow) btnNow.addEventListener("click", () => historySnapshot(monthKeyFromDate(new Date())));
@@ -474,7 +462,7 @@
       historySnapshot(m);
     });
 
-    if (btnExport) btnExport.addEventListener("click", historyExportJSON);
+
     if (btnWipe) btnWipe.addEventListener("click", historyClearAll);
 
     if (inpMonth && !inpMonth.__bound) {
