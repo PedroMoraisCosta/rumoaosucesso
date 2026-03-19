@@ -754,3 +754,48 @@ body.dark .table-light{
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+/* botão dark mode — estado normal */
+#btnThemeToggleDesktop{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* botão dark mode — sidebar colapsada */
+body.sidebar-collapsed #btnThemeToggleDesktop{
+  justify-content: center;
+  padding: 0 !important;
+  width: 44px;
+  height: 44px;
+}
+
+/* esconder texto quando colapsado */
+body.sidebar-collapsed #btnThemeToggleDesktop span{
+  display: none;
+}
+
+/* botão dark mode — sidebar colapsada */
+body.sidebar-collapsed #btnThemeToggleDesktop{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0 !important;
+  font-size: 0 !important;
+  overflow: hidden;
+  margin-left: -4px; /* 🔧 empurra ligeiramente para a esquerda */
+}
+
+/* ícone modo claro */
+body.sidebar-collapsed #btnThemeToggleDesktop::before{
+  content: "🌙";
+  font-size: 18px;
+}
+
+/* ícone modo escuro */
+body.dark.sidebar-collapsed #btnThemeToggleDesktop::before{
+  content: "☀️";
+}
