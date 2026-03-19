@@ -25,10 +25,16 @@
 
 html, body { height: 100%; }
 
-body.bg-body-tertiary{
-  background: #f6f7fb !important;
-  color: var(--ras-text);
+body {
+  background: #f6f8fb;
+  color: #111827;
 }
+
+body.dark {
+  background: #0b1220 !important;
+  color: #e5e7eb !important;
+}
+
 
 /* ---------- Cards / borders base ---------- */
 .card{
@@ -480,18 +486,7 @@ body.bg-body-tertiary{
   --bs-table-bg: rgba(13,110,253,0.06);
 }
 
-/* ---------- Dark mode (auto pelo sistema + manual com body.dark) ---------- */
-@media (prefers-color-scheme: dark){
-  body.bg-body-tertiary{ background: #0b1220 !important; color: #e5e7eb; }
-  .card{ background: #0f172a; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 18px 55px rgba(0,0,0,.35); }
-  .border.rounded, .border.rounded-3, .border.rounded-4{ border: 1px solid rgba(255,255,255,.10) !important; }
-  .text-secondary{ color: rgba(229,231,235,.70) !important; }
-  .bg-white{ background: #0f172a !important; }
-  .table{ color: #e5e7eb; }
-  .table-light{ --bs-table-bg: rgba(255,255,255,0.06); }
-  .form-control, .form-select{ background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,.10); }
-  .form-control::placeholder{ color: rgba(229,231,235,.45); }
-}
+
 
 /* manual override (se adicionares/removeres class "dark" no body) */
 body.dark.bg-body-tertiary{ background: #0b1220 !important; color: #e5e7eb; }
