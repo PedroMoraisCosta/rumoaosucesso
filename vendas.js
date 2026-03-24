@@ -215,33 +215,12 @@
     return 0;
   }
 
-  function canApplyTrade(trade, editingId) {
-    const classe = (trade.classe || "").trim();
-    const ticker = normalizeTicker(trade.ticker);
-    const qtyNew = num(trade.qty);
-
-    // só validamos classes que mexem no portefólio
-    if (!["acoes", "cripto"].includes(classe)) return { ok: true };
-
-    let available = portfolioQtyFor(classe, ticker);
-
-    // ✅ Permitir registar venda mesmo que o ticker não exista no portefólio.
-    // Se não existe, não validamos quantidade (fica só como histórico).
-    if (!portfolioHasTicker(classe, ticker)) return { ok: true };
-
-    // se está a editar, devolve qty antiga
-    if (editingId) {
-      const prev = state.list.find(x => x.id === editingId);
-      if (prev && normalizeTicker(prev.ticker) === ticker && prev.classe === classe) {
-        available += num(prev.qty);
-      }
-    }
-
-    if (qtyNew > available) {
-      return { ok: false, msg: `Não dá para vender ${qtyNew} de ${ticker}. Tens ${available} disponível.` };
-    }
-    return { ok: true };
-  }
+function canApplyTrade(trade, editingId) {
+  // Vendas / Realizações = módulo independente
+  // Não valida contra o portefólio atual
+  // Serve também para registar vendas antigas
+  return { ok: true };
+}
 
   // -----------------------
   // Cálculos
@@ -268,52 +247,11 @@
   // Sync com portefólio
   // -----------------------
   function applyTradeToPortfolio(trade, dir) {
-    // dir = +1 aplicar venda (reduz holdings)
-    // dir = -1 rollback (volta a aumentar holdings)
-    const classe = (trade.classe || "").trim();
-    const ticker = normalizeTicker(trade.ticker);
-    const qty = num(trade.qty);
-    const avgBuy = num(trade.avgBuy);
-
-    if (!ticker || qty <= 0) return;
-
-    const port = getPortfolio();
-
-    if (classe === "acoes") {
-      const idx = (port.stocks || []).findIndex(s => normalizeTicker(s.ticker) === ticker);
-      if (idx === -1) {
-        console.warn("[Vendas Sync] Ticker não existe em stocks:", ticker);
-        return;
-      }
-
-      const deltaQty = -qty * dir; // aplicar: -qty | rollback: +qty
-      const newQty = num(port.stocks[idx].qty) + deltaQty;
-      port.stocks[idx].qty = Math.max(0, newQty);
-
-      setPortfolio(port);
-      return;
-    }
-
-    if (classe === "cripto") {
-      const idx = (port.crypto || []).findIndex(c => normalizeTicker(c.coin) === ticker);
-      if (idx === -1) {
-        console.warn("[Vendas Sync] Moeda não existe em crypto:", ticker);
-        return;
-      }
-
-      const deltaQty = -qty * dir;
-      const newQty = num(port.crypto[idx].qty) + deltaQty;
-      port.crypto[idx].qty = Math.max(0, newQty);
-
-      // Ajuste simples do investido (custo base por qty*avgBuy)
-      const deltaInvest = -(qty * avgBuy) * dir;
-      const newInvest = num(port.crypto[idx].invest) + deltaInvest;
-      port.crypto[idx].invest = Math.max(0, newInvest);
-
-      setPortfolio(port);
-      return;
-    }
-  }
+  // Vendas / Realizações = módulo independente
+  // Não altera ações
+  // Não altera cripto
+  return;
+}
 
   function rollbackTradeById(id) {
     const prev = state.list.find(x => x.id === id);

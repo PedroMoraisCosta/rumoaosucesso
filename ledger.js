@@ -41,19 +41,32 @@
   }
   function uid() { return "l_" + Math.random().toString(16).slice(2) + Date.now().toString(16); }
 
-    function categoryLabel(v) {
-    const map = {
-      deposit: "Depósito / reforço",
-      stock_dividend: "Dividendo ações",
-      stock_sale: "Venda ações",
-      crypto_sale: "Venda cripto",
-      p2p_interest: "Juros P2P",
-      fund_interest: "Juros fundos",
-      transfer: "Transferência",
-      other: "Outro"
-    };
-    return map[v] || "—";
-  }
+   function categoryLabel(v) {
+  const map = {
+    deposit: "Depósito / reforço",
+
+    stock_dividend: "Dividendo ações",
+    stock_sale: "Venda ações",
+    stock_buy: "Compra ações",
+
+    crypto_sale: "Venda cripto",
+    crypto_buy: "Compra cripto",
+
+    p2p_interest: "Juros P2P",
+    p2p_buy: "Reforço P2P",
+
+    fund_interest: "Juros fundos",
+
+    transfer_in: "Transferência recebida",
+    transfer_out: "Transferência enviada",
+
+    withdraw: "Levantamento",
+
+    other_in: "Outro (entrada)",
+    other_out: "Outro (saída)"
+  };
+  return map[v] || "—";
+}
 
     function getCategoryOptions(type, cls) {
     const isIn = type === "in";
@@ -196,16 +209,31 @@
       if (!date) return { ok: false, msg: "Falta a data." };
     if (!["in", "out"].includes(type)) return { ok: false, msg: "Tipo inválido." };
     if (!["banco", "acoes", "cripto", "p2p", "fundos"].includes(cls)) return { ok: false, msg: "Classe inválida." };
-    if (![
-      "deposit",
-      "stock_dividend",
-      "stock_sale",
-      "crypto_sale",
-      "p2p_interest",
-      "fund_interest",
-      "transfer",
-      "other"
-    ].includes(category)) return { ok: false, msg: "Origem / Evento inválido." };
+if (![
+  "deposit",
+
+  "stock_dividend",
+  "stock_sale",
+  "stock_buy",
+
+  "crypto_sale",
+  "crypto_buy",
+
+  "p2p_interest",
+  "p2p_buy",
+
+  "fund_interest",
+
+  "transfer_in",
+  "transfer_out",
+
+  "withdraw",
+
+  "other_in",
+  "other_out"
+].includes(category)) {
+  return { ok: false, msg: "Origem / Evento inválido." };
+}
     if (amount <= 0) return { ok: false, msg: "Valor tem de ser > 0." };
 
     return { ok: true, data: { date, type, cls, category, amount, note } };
